@@ -14,16 +14,23 @@
 #include <ws2tcpip.h>
 #include <iostream>
 #include <stdexcept>
+#include <vector>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define PORT 2020
 #define REQUEST 10
+#define IPV4LEN 16
+#define BUFFER 1024
+#define SERVER_NAME "ft_irc.2004.ma"
 
 
 
 class Server
 {
     private :
-        int sockfd;
+        int         sockfd;
+        std::string password;
         Server &operator=(const Server  &other);
         Server(const Server &other);
         Server();
@@ -36,13 +43,18 @@ class Server
     public :
         Server(char *port, char *password);
         ~Server();
-
+        int run();
+        int getsocket();
+        int handleListener(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+        int handleClient(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+        const std::string &getpass();
     
 
 };
 
 int     myport(char *port);
 bool    mypass(char *pass);
+int     parsechannel();
 
 #endif
 

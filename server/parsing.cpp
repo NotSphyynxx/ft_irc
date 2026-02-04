@@ -29,3 +29,5 @@ bool mypass(char *pass)
         throw std::runtime_error("Empty password ! \n");
     return true;
 }
+
+
