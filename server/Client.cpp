@@ -25,6 +25,10 @@ std::string &Client::getrealname()
 {
     return this->realname;
 }
+std::string &Client::getBuffer()
+{
+    return this->buffer;
+}
 void Client::setnickname(std::string &s)
 {
     this->nickname = s;
@@ -37,8 +41,10 @@ void Client::setrealname(std::string &s)
 {
     this->realname = s;
 }
-
-
+void Client::setBuffer(std::string &buf)
+{
+    this->buffer += buf;
+}
 Client::Client(int sock) : mysocket(sock) , rank{EMPTY, EMPTY, EMPTY, EMPTY}
 {
     
@@ -236,8 +242,18 @@ std::string &Client::getIp()
 {
     return this->myIP;
 }
-void Client::myIp(std::string ip)
+void Client::setIp(std::string ip)
 {
     this->myIp = ip;
+}
+
+time_t &Client::getconnecttime()
+{
+    return this->connectTime;
+}
+
+void Client::setconnecttinme(time_t time)
+{
+    this->connectTime = time;
 }
 

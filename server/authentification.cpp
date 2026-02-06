@@ -21,6 +21,8 @@ bool Client::Emptynames()
 
 bool Client::pass(std::string &pass, const Server &sv)
 {
+    if (getlevel(0) == hasPASS)
+        return true;
     if (pass == sv.getpass())
     {
         setlevel(0, hasPASS);
@@ -30,6 +32,7 @@ bool Client::pass(std::string &pass, const Server &sv)
     {
         std::string error = ":" + SERVER_NAME + "464 :Password incorrect\r\n";
         send(getsocket(), error.c_str(), error.size());
+        sv.closeSocket(sv.getpollstruct(), getsock());
     }
     return false;
 }
@@ -63,6 +66,7 @@ bool Client::nick(std::string &nickname, const Server &sv)
             return false;
         }
     }// you need to check if there is another client with the same nickname
+    sv.sameName(nickname);
     setlevel(1, hasNICK);
     setnickname(nickname);
     return true;
@@ -88,7 +92,7 @@ bool  Client::user(std::string &extracted, const Server &sv)
     ss >> unused;
     std::string rest_of_line;
     std::getline(ss, rest_of_line);
-    if (username.empty() || mode.empty() || unused.empty()) {
+    if (user.empty() || mode.empty() || unused.empty()) {
         std::string error = "461 USER :Not enough parameters\r\n";
         send(getsocket(), error.c_str(), error.size());
         return false;
@@ -124,15 +128,15 @@ void Client::sendWelcome(const Server &sv)
 
     std::string rpl002 = ":" + serverName + " 002 " + nick + 
                          " :Your host is " + serverName + ", running version 1.0\r\n";
-    send(fd, rpl002.c_str(), rpl002.size(), 0);
+    send(getsock(), rpl002.c_str(), rpl002.size(), 0);
     
     std::string rpl003 = ":" + serverName + " 003 " + nick + 
                          " :This server was created Jan 01 2024\r\n";
-    send(fd, rpl003.c_str(), rpl003.size(), 0);
+    send(getsock(), rpl003.c_str(), rpl003.size(), 0);
 
     std::string rpl004 = ":" + serverName + " 004 " + nick + 
                          " " + serverName + " 1.0 io itkol\r\n";
-    send(fd, rpl004.c_str(), rpl004.size(), 0);
+    send(getsock(), rpl004.c_str(), rpl004.size(), 0);
 
  }
 int Client::Authentication(const Server &sv)
@@ -159,7 +163,7 @@ int Client::Authentication(const Server &sv)
         if (cmd == "NICK")
         {
             has_nick = true;
-            if (has_pass)
+            if (getlevel(0) == hasPASS)//has_pass 
             {
                 if (!this->nick(value, sv))
                     return 0;
@@ -174,7 +178,7 @@ int Client::Authentication(const Server &sv)
         if (cmd == "USER")
         {
             has_name = true;
-            if (has_pass && has_nick)
+            if (getlevel(0) == hasPASS && getlevel(1) == hasNICK)//has_pass && has_nick
             {
                 if (!this->user(extracted, sv))
                     return 0;
@@ -192,6 +196,11 @@ int Client::Authentication(const Server &sv)
             if (!this->pass(value, sv))
                 return 0;
             has_pass = true;
+            if (getlevel(0) == hasPASS && (getconnecttime() - (time(NULL)) > 40))
+            {
+                std::cout << "Timeout: Closing unregistered client " << fds[i].fd << std::endl;
+                sv.closeSocket(sv.getpollstruct(), getsock());
+            }
         }
         copy.erase(0 , pos + 2);
     }

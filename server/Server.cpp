@@ -56,6 +56,7 @@ Server::Server(char *pt, char *pass)
         close(sockfd);
         throw std::runtime_error("listen failed !");
     }
+    std::cout << "server: waiting for connections... " << std::cout;
     freeaddrinfo(server_info);
     server_info  = NULL;
 }
@@ -68,20 +69,20 @@ int Server::getsocket()
 
 int Server::run()
 {
-    std::vector <struct pollfd> sockarray;
+    std::vector <struct pollfd> &sockarray = getpollstruct();
     int sock = getsocket();
     sockarray.push_back({sock, POLLIN, 0});
     int p = -1;
     while (1)
     {
-        p = poll(sockarray.data(), sockarray.size(), -1);
+        p = poll(sockarray.data(), sockarray.size(), 3000);
         if (p == -1)
-        {
             throw std::runtime_error("poll failed");
-        }
         if (p == 0)
         {
-            return 0;// nothing happened (timeout)
+            checkTimeout(sockarray);
+            continue ;
+            //return 0;// nothing happened (timeout)  but if you said -1 then probably you need to rm this check
         }
         else
         {
@@ -91,14 +92,17 @@ int Server::run()
                 {
                     if (sockarray[i].fd == sock) // from listener (a new connection)
                     {
-                        handleListener(sockarray, i, sock);
+                        NewConnection(sockarray, i, sock);
                     }
                     else // a client
                     {
-                        handleClient(sockarray, i, sock);
+                        handleClient(sockarray, i, sockarray[i].fd);//sock
                     }
                 }
-                
+                if (sockarray[i].revents == POLLHUP || sockarray[i].revents == POLLERR)
+                {
+                    closeSocket(sockarray, sock);
+                }
             }
         }
 
@@ -109,7 +113,7 @@ int Server::run()
 }
 
 
-int Server::handleListener(std::vector <struct pollfd> &fds, unsigned int i, int sock)
+int Server::NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int sock)
 {
     struct sockaddr_storage st;
     struct sockaddr_in *hp;
@@ -125,16 +129,66 @@ int Server::handleListener(std::vector <struct pollfd> &fds, unsigned int i, int
     hp =  (struct sockaddr_in *) &st;
     std::cout << "new connection  from : "
     << inet_ntop(hp.sa_family, &hp.sin_addr, ipv4char, sizeof(ipv4char))
-    << std::cout;
-
+    << std::endl;
+    addClient(new_fd);
+    try
+    {
+        Client &cl = getClient(new_fd);
+        cl.setconnecttinme(time(NULL));  
+    }
+    catch (const std::out_of_range& e)
+    {
+        (void)e;
+        std::cerr << "getClient() failed (at()) !" << std::endl;
+        closeSocket(fds, new_fd);
+        return 0;   
+    }
     return 1;
 }
 
-int Server::handleClient(std::vector <struct pollfd> &fds, unsigned int i, int sock)
+int Server::RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int sock)
 {
     char buff[BUFFER];
-    struct 
-    
+    size_t bytes_recv;
+
+    memset(buff, 0, sizeof(buff));
+    bytes_recv = recv(sock, buff, BUFFER, 0);
+    if (bytes_recv == -1)
+    {
+        if (errno == EWOULDBLOCK || errno == EAGAIN)
+            return 0;
+        std::cerr << "recv failed !" << std::cout;
+        closeSocket(fds, sock);
+        return -1;// check for -1 later
+    }
+    if (bytes_recv == 0)
+    {
+        std::cerr << "Client disconnected !" << std::cout;
+        closeSocket(fds, sock);
+        return -1;// check for -1 later
+    }
+    buff[bytes_recv] = '\0';
+    try {
+        Client &cl = getClient(sock);
+        cl.appand(buff);
+    }
+    catch (const std::out_of_range& e)
+    {
+        (void)e;
+        std::cerr << "getClient() failed (at()) !" << std::endl;
+        closeSocket(fds, sock);
+        return 0;   
+    }
+    if (getClient().getBuffer().size() > 5120)
+    {
+        std::cerr << "Client " << sock << " is flooding. Disconnecting." << std::endl;
+        closeSocket(fds, sock); 
+        return 0;
+    }
+    if (!getClient(sock).Authentication(*this))
+        return 0;
+    std::cout << "client : received " << buff << std::cout;
+    return 1;
 }
 
 const std::string Server::getpass()
@@ -145,4 +199,95 @@ Server::~Server()
 {
     freeaddrinfo(server_info);
     close(sockfd);
+}
+
+
+
+Client& Server::getClient(int fd)
+{
+    return _clients.at(fd); 
+}
+
+bool Server::clientExists(int fd) const
+{
+    return _clients.find(fd) != _clients.end(); // false = we found end() 
+}
+
+void Server::addClient(int fd) {
+    // This creates a new Client object using the default constructor
+    // and maps it to the file descriptor 'fd'
+    // or overwrite the value
+    _clients[fd] = Client(fd);
+}
+
+void Server::removeClient(int fd)
+{
+    if (clientExists(fd)) {
+        _clients.erase(fd);
+    }
+}
+
+cmaps &Server::getcmaps() const
+{
+    return this->_client;
+}
+
+pollvec &Server::getpollstruct()
+{
+    return this->sockarray;
+}
+bool Server::sameName(std::string &nickname)
+{
+    cmaps tmp = this->getcmaps();
+    cmaps::iterator it = tmp.begin();
+
+    for (; it != tmp.end(); it++)
+    {
+        if (it->second.getnickname() == nickname)
+            return true;   
+    }
+    return false;
+}
+void Server::closeSocket(std::vector <struct pollfd> &fds, int sock)
+{
+    std::vector <struct pollfd>::iterator it = fds.begin();
+    for (it; it != end(); it)
+    {
+        if (it->fd == sock)
+        {
+            fds.erase(it);
+            break;
+        }
+    }
+    removeClient(sock);
+    close(sock);
+}
+
+int Server::checkTimeout(pollvec &sockarray)
+{
+
+    for (size_t i = 0; i < sockarray.size();)
+    {
+        if (i > 0)
+        {
+            try 
+            {
+                Client &cl = getClient(sockarray[i].fd);
+                if (((time(NULL)) - cl.getconnecttime()) > 60)
+                {
+                    std::cout << "Timeout: Closing unregistered client " << sockarray[i].fd << std::endl;
+                    closeSocket(sockarray, sockarray[i].fd);
+                    continue;
+                }
+            }
+            catch (const std::out_of_range& e)
+            {
+                (void)e;
+                std::cerr << "getClient() failed (at()) !" << std::endl;
+                return -1;   
+            }
+        }
+        i++;
+    }
+    return 1;
 }

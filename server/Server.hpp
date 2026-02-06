@@ -17,6 +17,11 @@
 #include <vector>
 #include <fcntl.h>
 #include <unistd.h>
+#include <map>
+#include <string>
+#include <ctime>
+
+//#include <Client.hpp>
 
 #define PORT 2020
 #define REQUEST 10
@@ -24,16 +29,22 @@
 #define BUFFER 1024
 #define SERVER_NAME "ft_irc.2004.ma"
 
-
+class Client;
+#include "Client.hpp" // i guess you gonna remove it 
+typedef std::map <int , Client> cmaps;
+typedef std::vector <struct pollfd> pollvec;
 
 class Server
 {
+   
     private :
         int         sockfd;
         std::string password;
         Server &operator=(const Server  &other);
         Server(const Server &other);
         Server();
+        cmaps _client;
+        pollvec sockarrayy;
     protected :
         struct addrinfo *server_info;
         struct sockaddr_in addsock_in;//you need to set it to zero (the kernel expects the unused bytes to be zero)
@@ -45,9 +56,17 @@ class Server
         ~Server();
         int run();
         int getsocket();
-        int handleListener(std::vector <struct pollfd> &fds, unsigned int i, int sock);
-        int handleClient(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+        int NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+        int RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int sock);
         const std::string &getpass();
+        void removeClient(int fd);
+        bool clientExists(int fd) const;
+        Client& getClient(int fd);
+        cmaps & getcmaps() const ;
+        pollvec &getpollstruct();
+        bool sameName(std::string &nickname);
+        void closeSocket(pollvec &fds, int sock);
+        int checkTimeout(pollvec &fds);
     
 
 };
