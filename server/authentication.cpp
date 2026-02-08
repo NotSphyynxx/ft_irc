@@ -2,8 +2,8 @@
 
 bool isSpecial(char c)
 {
-    if (c == '_' || c == "-" || c == '\\' || c == '[' || c == ']'
-        c == '{' || c == '}' || c == '^' || c == '|')
+    if (c == '_' || c == '-' || c == '\\' || c == '[' || c == ']'
+        || c == '{' || c == '}' || c == '^' || c == '|')
     {
         return true;
     }
@@ -12,14 +12,14 @@ bool isSpecial(char c)
 
 bool Client::Emptynames()
 {
-    if (getnickname().empty || getusername().empty())
+    if (getnickname().empty() || getusername().empty())
     {
         return true;
     }
     return false;
 }
 
-bool Client::pass(std::string &pass, const Server &sv)
+bool Client::pass(std::string &pass, Server &sv)
 {
     if (getlevel(0) == hasPASS)
         return true;
@@ -30,31 +30,31 @@ bool Client::pass(std::string &pass, const Server &sv)
     }
     else
     {
-        std::string error = ":" + SERVER_NAME + "464 :Password incorrect\r\n";
-        send(getsocket(), error.c_str(), error.size());
+        std::string error = ":" + std::string(SERVER_NAME) + " 464 :Password incorrect\r\n";
+        send(getsock(), error.c_str(), error.size(), 0);
         sv.closeSocket(sv.getpollstruct(), getsock());
     }
     return false;
 }
 
-bool Client::nick(std::string &nickname, const Server &sv)
+bool Client::nick(std::string &nickname, Server &sv)
 {
     if (nickname.empty())
     {
         std::string error = ":ft_irc.2004.ma 431 :No nickname given\r\n";
-        send(getsocket(), error.c_str(), error.size());
+        send(getsock(), error.c_str(), error.size(), 0);
         return false;
     }
-    if (nickname.size > 9)
+    if (nickname.size() > 9)
     {
         std::string error = ":ft_irc.2004.ma 432 :Nickname too long\r\n";
-        send(getsocket(), error.c_str(), error.size());
+        send(getsock(), error.c_str(), error.size(), 0);
         return false;
     }
     if (!isalpha(nickname[0]) || !isSpecial(nickname[0]))
     {
         std::string error = ":ft_irc.2004.ma 432 :Erroneous nickname\r\n";
-        send(getsocket(), error.c_str(), error.size());
+        send(getsock(), error.c_str(), error.size(), 0);
         return false;
     }
     for (size_t i = 0; i <= nickname.size(); i++)
@@ -62,7 +62,7 @@ bool Client::nick(std::string &nickname, const Server &sv)
         if (!isdigit(nickname[i]) && !isalpha(nickname[i]) && !isSpecial(nickname[i]))
         {
             std::string error = ":ft_irc.2004.ma 432 :Erroneous nickname\r\n";
-            send(getsocket(), error.c_str(), error.size());
+            send(getsock(), error.c_str(), error.size(), 0);
             return false;
         }
     }// you need to check if there is another client with the same nickname
@@ -73,7 +73,7 @@ bool Client::nick(std::string &nickname, const Server &sv)
 }
 
 
-bool  Client::user(std::string &extracted, const Server &sv)
+bool  Client::user(std::string &extracted)
 {
     std::stringstream ss(extracted);
     std::string user;// should not be empty
@@ -84,7 +84,7 @@ bool  Client::user(std::string &extracted, const Server &sv)
     if (getlevel(3) == REGISTRED)
     {
         std::string error = ":server 462 :You may not reregister\r\n";
-        send(getsocket(), error.c_str(), error.size());
+        send(getsock(), error.c_str(), error.size(), 0);
         return false;  
     }
     ss >> user;
@@ -94,7 +94,7 @@ bool  Client::user(std::string &extracted, const Server &sv)
     std::getline(ss, rest_of_line);
     if (user.empty() || mode.empty() || unused.empty()) {
         std::string error = "461 USER :Not enough parameters\r\n";
-        send(getsocket(), error.c_str(), error.size());
+        send(getsock(), error.c_str(), error.size() , 0);
         return false;
     }
     size_t col_pos = rest_of_line.find(':');
@@ -109,13 +109,13 @@ bool  Client::user(std::string &extracted, const Server &sv)
     setlevel(2, hasUSER);
     if ((getlevel(0) == hasPASS && getlevel(1) == hasNICK && getlevel(2) == hasUSER) && !Emptynames())
     {
-        setlevel(3, REGISTERED);
-        sendWelcome(sv);
+        setlevel(3, REGISTRED);
+        sendWelcome();
     }
     return true;
 }
 
-void Client::sendWelcome(const Server &sv)
+void Client::sendWelcome()
  {
     std::string nick = getnickname();
     std::string user = getusername();
@@ -139,13 +139,9 @@ void Client::sendWelcome(const Server &sv)
     send(getsock(), rpl004.c_str(), rpl004.size(), 0);
 
  }
-int Client::Authentication(const Server &sv)
+int Client::Authentication(Server &sv)
 {
     size_t pos;
-    bool    has_name = false;
-    bool    has_nick = false;
-    bool    has_pass = false;
-
     std::string &copy = buffer;// later you will know if you need a copy or not 
     std::string extracted;
     std::string cmd;
@@ -156,13 +152,12 @@ int Client::Authentication(const Server &sv)
     while ((pos = copy.find("\r\n")) != std::string::npos)
     {
         extracted = copy.substr(0, pos);
-        sp(extracted);
+        sp.str(extracted);
         sp >> cmd;
         sp >> value;
 
         if (cmd == "NICK")
         {
-            has_nick = true;
             if (getlevel(0) == hasPASS)//has_pass 
             {
                 if (!this->nick(value, sv))
@@ -177,10 +172,9 @@ int Client::Authentication(const Server &sv)
         }
         if (cmd == "USER")
         {
-            has_name = true;
             if (getlevel(0) == hasPASS && getlevel(1) == hasNICK)//has_pass && has_nick
             {
-                if (!this->user(extracted, sv))
+                if (!this->user(extracted))
                     return 0;
             }
              else
@@ -195,10 +189,9 @@ int Client::Authentication(const Server &sv)
         {
             if (!this->pass(value, sv))
                 return 0;
-            has_pass = true;
             if (getlevel(0) == hasPASS && (getconnecttime() - (time(NULL)) > 40))
             {
-                std::cout << "Timeout: Closing unregistered client " << fds[i].fd << std::endl;
+                std::cout << "Timeout: Closing unregistered client " << getsock() << std::endl;
                 sv.closeSocket(sv.getpollstruct(), getsock());
             }
         }

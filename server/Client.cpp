@@ -9,7 +9,7 @@ std::string  Client::appand(std::string buf)
 }
 
 //getters and setters
-const int Client::getsock()
+int Client::getsock()
 {
     return this->mysocket;
 }
@@ -29,25 +29,26 @@ std::string &Client::getBuffer()
 {
     return this->buffer;
 }
-void Client::setnickname(std::string &s)
+void Client::setnickname(std::string s)
 {
     this->nickname = s;
 }
-void Client::setusername(std::string &s)
+void Client::setusername(std::string s)
 {
     this->username = s;
 }
-void Client::setrealname(std::string &s)
+void Client::setrealname(std::string s)
 {
     this->realname = s;
 }
-void Client::setBuffer(std::string &buf)
+void Client::setBuffer(std::string buf)
 {
     this->buffer += buf;
 }
-Client::Client(int sock) : mysocket(sock) , rank{EMPTY, EMPTY, EMPTY, EMPTY}
+Client::Client(int sock) : mysocket(sock)
 {
-    
+    for (int i = 0; i < 4 ; i++)  
+        setlevel(i , EMPTY);
 }
 // bool Client::pass(std::string &pass, const Server &sv)
 // {
@@ -240,7 +241,7 @@ void Client::setlevel(unsigned int index, Level value)
 
 std::string &Client::getIp()
 {
-    return this->myIP;
+    return this->myIp;
 }
 void Client::setIp(std::string ip)
 {
@@ -252,12 +253,12 @@ time_t &Client::getconnecttime()
     return this->connectTime;
 }
 
-void Client::setconnecttinme(time_t time)
+void Client::setconnecttinme(time_t tm)
 {
-    this->connectTime = time;
+    this->connectTime = tm;
 }
 
-std::string Client::getoutbuffer()
+std::string &Client::getoutbuffer()
 {
     return this->outbuffer;
 }

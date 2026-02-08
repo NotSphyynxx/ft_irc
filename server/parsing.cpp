@@ -1,4 +1,8 @@
-#include "Server.cpp"
+#include <cstring>
+#include <string>
+#include <stdexcept>
+#include <cstdlib>
+
 
 int myport(char *port)
 {

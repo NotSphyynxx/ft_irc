@@ -1,8 +1,30 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-#include "Server.hpp"
+// #include <sys/socket.h> // Core socket functions
+// #include <netinet/in.h> // sockaddr_in structure
+// #include <arpa/inet.h>  // inet_addr tools
+// #include <unistd.h>     // close()
+// #include <fcntl.h>      // fcntl() for non-blocking
+// #include <poll.h>
+// #include <sys/types.h>
+// #include <netdb.h>
+// #include <cstring>
+// // #include <winsock2.h>
+// // #include <ws2tcpip.h>
+// #include <iostream>
+// #include <stdexcept>
+// #include <vector>
+// #include <fcntl.h>
+// #include <unistd.h>
+// #include <map>
+// #include <string>
+// #include <ctime>
+// // #include "windows.h"
+// #include <cerrno>
 
+#include "Server.hpp"
+class Server;
 enum Level
 {
     hasPASS,
@@ -46,16 +68,17 @@ class Client
         void          setnickname(std::string _nickname);
         void          setrealname(std::string _realname);
         void          setBuffer(std::string buffer);
-        void          setconnecttinme();
-        std::string &appand(std::string buf);
+        void          setconnecttinme(time_t tm);
+        std::string   appand(std::string buf);
         void        process_buffer();
-        int         Authentication(const Server &sv);
-        bool         user(std::string &extracted, const Server &sv);
-        bool        pass(std::string &pass, const Server &sv);
-        bool         nick(std::string &nickname, const Server &sv);
-        const int   getsock();
-        void        sendWelcome(const Server &sv);
+        int         Authentication(Server &sv);
+        bool         user(std::string &extracted);
+        bool        pass(std::string &pass,  Server &sv);
+        bool        nick(std::string &nickname, Server &sv);
+        int         getsock();
+        void        sendWelcome();
         bool        Emptynames();
        
 
-}
+};
+#endif

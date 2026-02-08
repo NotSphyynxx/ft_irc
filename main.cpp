@@ -9,6 +9,8 @@ int main(int argc, char **argv)
         {
             throw std::runtime_error("missing arguments !\n");
         }
+        Server sv(argv[1], argv[2]);
+        sv.run();
     }
     catch(const std::exception& e)
     {

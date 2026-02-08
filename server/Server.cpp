@@ -1,22 +1,22 @@
 #include "Server.hpp"
-
+#include "Client.hpp"
 
 Server::Server(char *pt, char *pass)
 {
     struct addrinfo hints;
     struct addrinfo *p;
+    struct addrinfo *server_info = this->getServerI();
     int check  = -1;
-    int port = myport(pt);
+    myport(pt);
     
     sockfd = -1;
     if (mypass(pass))
         this->password = pass;   
     memset(&hints, 0 , sizeof(hints));
-    memset(server_info, 0 , sizeof(server_info));
+
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
-
     if ((check = getaddrinfo(NULL, pt, &hints, &server_info)) != 0)
     {
        throw std::runtime_error("getaddrinfo failed !");
@@ -45,7 +45,7 @@ Server::Server(char *pt, char *pass)
     }
     if (p == NULL)
     {
-         freeaddrinfo(server_info);
+        freeaddrinfo(server_info);
         throw std::runtime_error("Server failed to bind to any address");
     }
     //you may need to save server ip
@@ -70,7 +70,10 @@ int Server::run()
 {
     std::vector <struct pollfd> &sockarray = getpollstruct();
     int sock = getsocket();
-    sockarray.push_back({sock, POLLIN, 0});
+    struct pollfd pfd;
+    pfd.fd = sock;
+    pfd.events = POLLIN;
+    sockarray.push_back(pfd);
     int p = -1;
     while (1)
     {
@@ -92,11 +95,11 @@ int Server::run()
                 {
                     if (sockarray[i].fd == sock) // from listener (a new connection)
                     {
-                        NewConnection(sockarray, i, sock);
+                        NewConnection(sockarray, sock);
                     }
                     else // a client
                     {
-                        handleClient(sockarray, i, sockarray[i].fd);//sock
+                        RecieveMessage(sockarray, sockarray[i].fd);//sock
                     }
                 }
                 if (sockarray[i].revents & (POLLHUP | POLLERR))
@@ -116,7 +119,7 @@ int Server::run()
 }
 
 
-int Server::NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int sock)
+int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 {
     struct sockaddr_storage st;
     struct sockaddr_in *hp;
@@ -124,14 +127,17 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int 
     char    ipv4char[IPV4LEN];
 
     int new_fd = -1;
-    if ((new_fd == accept(sock,(sockaddr *) &st, &sz)) == -1)
+    if ((new_fd = accept(sock,(sockaddr *) &st, &sz)) == -1)
     {
         return -1;
     }
-    fds.push_back({new_fd, POLLIN, 0});
+    struct pollfd tmp;
+    tmp.fd = new_fd;
+    tmp.events = POLLIN;
+    fds.push_back(tmp);
     hp =  (struct sockaddr_in *) &st;
     std::cout << "new connection  from : "
-    << inet_ntop(hp.sa_family, &hp.sin_addr, ipv4char, sizeof(ipv4char))
+    << inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char))
     << std::endl;
     addClient(new_fd);
     try
@@ -149,7 +155,7 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int 
     return 1;
 }
 
-int Server::RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int sock)
+int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 {
     char buff[BUFFER];
     ssize_t bytes_recv;
@@ -182,7 +188,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int
         closeSocket(fds, sock); // i guess you should remove this 
         return 0;   
     }
-    if (getClient().getBuffer().size() > 5120)
+    if (getClient(sock).getBuffer().size() > 5120)
     {
         std::cerr << "Client " << sock << " is flooding. Disconnecting." << std::endl;
         closeSocket(fds, sock); 
@@ -199,9 +205,9 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
     try 
     {
         ssize_t bytesent;
-        Client &cl = getClient();
-        std::string &buf = cl.outbuffer();
-        if (cl.getBuffer.empty)
+        Client &cl = getClient(sock);
+        std::string &buf = cl.getoutbuffer();
+        if (cl.getBuffer().empty())
             return (0);
        // fds[i].events |= POLLOUT;
         if ((bytesent = send(sock, buf.c_str(), buf.size(), 0) )== -1)
@@ -212,7 +218,7 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
         }
         buf.erase(0, bytesent);
         if (!buf.empty())
-            fds[i].events |= POLLOUT
+            fds[i].events |= POLLOUT;
         else
             fds[i].events &= ~POLLOUT;
         
@@ -227,51 +233,54 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
     }
 }
 
-const std::string Server::getpass()
+const std::string &Server::getpass() const
 {
     return this->password;
 }
+
 Server::~Server()
 {
-    freeaddrinfo(server_info);
-    close(sockfd);
+   // freeaddrinfo(getServerI());
+   // close(sockfd);
 }
-
-
 
 Client& Server::getClient(int fd)
 {
-    return _clients.at(fd); 
+    return _client.at(fd); 
 }
 
 bool Server::clientExists(int fd) const
 {
-    return _clients.find(fd) != _clients.end(); // false = we found end() 
+    return _client.find(fd) != _client.end(); // false = we found end() 
 }
 
 void Server::addClient(int fd) {
     // This creates a new Client object using the default constructor
     // and maps it to the file descriptor 'fd'
     // or overwrite the value
-    _clients[fd] = Client(fd);
+    std::map<int, Client>::iterator it = _client.find(fd);
+    if (it != _client.end())
+        it->second = Client(fd); // overwrite existing
+    else
+        _client.insert(std::make_pair(fd, Client(fd)));
 }
 
 void Server::removeClient(int fd)
 {
     if (clientExists(fd))
     {
-        _clients.erase(fd);
+        _client.erase(fd);
     }
 }
 
-cmaps &Server::getcmaps() const
+const cmaps &Server::getcmaps()
 {
     return this->_client;
 }
 
 pollvec &Server::getpollstruct()
 {
-    return this->sockarray;
+    return this->sockarrayy;
 }
 bool Server::sameName(std::string &nickname)
 {
@@ -288,7 +297,8 @@ bool Server::sameName(std::string &nickname)
 void Server::closeSocket(std::vector <struct pollfd> &fds, int sock)
 {
     std::vector <struct pollfd>::iterator it = fds.begin();
-    for (it; it != end(); it)
+    std::vector <struct pollfd>::iterator last = fds.end();
+    for (; it != last; it++)
     {
         if (it->fd == sock)
         {
@@ -337,7 +347,7 @@ int Server::checkPollout(pollvec &fds)
     {
     
             Client &cl = getClient(fds[i].fd);
-            if (!cl.outbuffer.empty())
+            if (!cl.getoutbuffer().empty())
             {
                 fds[i].events |= POLLOUT;
             }
@@ -356,4 +366,9 @@ int Server::checkPollout(pollvec &fds)
         return -1;   
     }
     return 1;
+}
+
+struct addrinfo *Server::getServerI()
+{
+    return this->serverI;
 }

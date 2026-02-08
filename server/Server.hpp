@@ -10,8 +10,8 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <cstring>
-#include <winsock2.h>
-#include <ws2tcpip.h>
+// #include <winsock2.h>
+// #include <ws2tcpip.h>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -20,8 +20,13 @@
 #include <map>
 #include <string>
 #include <ctime>
+// #include "windows.h"
+#include <cerrno>
+#include <sstream>
+#include <cstdlib>
 
 //#include <Client.hpp>
+
 
 #define PORT 2020
 #define REQUEST 10
@@ -29,8 +34,8 @@
 #define BUFFER 1024
 #define SERVER_NAME "ft_irc.2004.ma"
 
-//class Client;
-#include "Client.hpp" // i guess you gonna remove it 
+class Client;
+// #include "Client.hpp" // i guess you gonna remove it 
 typedef std::map <int , Client> cmaps;
 typedef std::vector <struct pollfd> pollvec;
 
@@ -45,10 +50,8 @@ class Server
         Server();
         cmaps _client;
         pollvec sockarrayy;
-    protected :
-        struct addrinfo *server_info;
-        struct sockaddr_in addsock_in;//you need to set it to zero (the kernel expects the unused bytes to be zero)
-        struct sockaddr_storage both_ipv // in case you dont know wich ipv (4 or 6)
+        struct addrinfo *serverI;
+
         
         
     public :
@@ -56,19 +59,22 @@ class Server
         ~Server();
         int run();
         int getsocket();
-        int NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int sock);
-        int RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+        int NewConnection(std::vector <struct pollfd> &fds, int sock);
+        int RecieveMessage(std::vector <struct pollfd> &fds, int sock);
         int sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock);
-        const std::string &getpass();
+        const std::string &getpass() const;
         void removeClient(int fd);
         bool clientExists(int fd) const;
         Client& getClient(int fd);
-        cmaps & getcmaps() const ;
+        const cmaps & getcmaps();
         pollvec &getpollstruct();
         bool sameName(std::string &nickname);
         void closeSocket(pollvec &fds, int sock);
         int checkTimeout(pollvec &fds);
         int checkPollout(pollvec &fds);
+        struct addrinfo *getServerI();
+        void addClient(int fd);
+
     
 
 };
