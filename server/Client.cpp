@@ -257,3 +257,12 @@ void Client::setconnecttinme(time_t time)
     this->connectTime = time;
 }
 
+std::string Client::getoutbuffer()
+{
+    return this->outbuffer;
+}
+void Client::setoutbuffer(std::string outbuff) // 0 for erase
+{
+     this->outbuffer = outbuff;
+}
+

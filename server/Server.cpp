@@ -23,31 +23,30 @@ Server::Server(char *pt, char *pass)
     }
     for (p = server_info; p != NULL; p = p->ai_next)
     { 
-        if (sockfd = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol) == =1)
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+            continue;
+        if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1)
         {
-            std::cerr << "socket failed !\n";
+            close(sockfd);
+            continue;
+        }
+        int truee = 1;
+        if  (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &truee, sizeof(truee)) == -1)
+         {
+             close(sockfd);
+             continue;
+         }
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(sockfd);
             continue;
         }
         break;
     }
-    if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1)
+    if (p == NULL)
     {
-        freeaddrinfo(server_info);
-        close(sockfd);
-        throw std::runtime_error("fcntl failed !");
-    }
-    if (bind(sockfd, server_info->ai_addr, server_info->ai_addrlen) == -1)
-    {
-        freeaddrinfo(server_info);
-        close(sockfd);
-        throw std::runtime_error("bind failed !");
-    }
-    int truee = 1;
-   if  (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, truee, sizeof(truee)) == -1)
-    {
-        freeaddrinfo(server_info);
-        close(sockfd);
-        throw std::runtime_error("setsockopt failed !");
+         freeaddrinfo(server_info);
+        throw std::runtime_error("Server failed to bind to any address");
     }
     //you may need to save server ip
     if (listen(sockfd, REQUEST) == -1)
@@ -56,7 +55,7 @@ Server::Server(char *pt, char *pass)
         close(sockfd);
         throw std::runtime_error("listen failed !");
     }
-    std::cout << "server: waiting for connections... " << std::cout;
+    std::cout << "server: waiting for connections... " << std::endl;
     freeaddrinfo(server_info);
     server_info  = NULL;
 }
@@ -75,6 +74,7 @@ int Server::run()
     int p = -1;
     while (1)
     {
+        checkPollout(sockarray);
         p = poll(sockarray.data(), sockarray.size(), 3000);
         if (p == -1)
             throw std::runtime_error("poll failed");
@@ -86,9 +86,9 @@ int Server::run()
         }
         else
         {
-            for (size_t i = 0; i < sockarray.size(); i++)
+            for (size_t i = 0; i < sockarray.size();)
             {
-                if (sockarray[i].revents == POLLIN)
+                if (sockarray[i].revents & POLLIN)
                 {
                     if (sockarray[i].fd == sock) // from listener (a new connection)
                     {
@@ -99,15 +99,18 @@ int Server::run()
                         handleClient(sockarray, i, sockarray[i].fd);//sock
                     }
                 }
-                if (sockarray[i].revents == POLLHUP || sockarray[i].revents == POLLERR)
+                if (sockarray[i].revents & (POLLHUP | POLLERR))
                 {
-                    closeSocket(sockarray, sock);
+                    closeSocket(sockarray, sockarray[i].fd);
+                    continue;
                 }
+                if (sockarray[i].revents & POLLOUT)
+                {
+                    sendMessages(sockarray, i, sockarray[i].fd);
+                }
+                i++;
             }
         }
-
-
-
     }
 
 }
@@ -149,7 +152,7 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int 
 int Server::RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int sock)
 {
     char buff[BUFFER];
-    size_t bytes_recv;
+    ssize_t bytes_recv;
 
     memset(buff, 0, sizeof(buff));
     bytes_recv = recv(sock, buff, BUFFER, 0);
@@ -176,7 +179,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int
     {
         (void)e;
         std::cerr << "getClient() failed (at()) !" << std::endl;
-        closeSocket(fds, sock);
+        closeSocket(fds, sock); // i guess you should remove this 
         return 0;   
     }
     if (getClient().getBuffer().size() > 5120)
@@ -189,6 +192,39 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int
         return 0;
     std::cout << "client : received " << buff << std::cout;
     return 1;
+}
+
+int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock)
+{
+    try 
+    {
+        ssize_t bytesent;
+        Client &cl = getClient();
+        std::string &buf = cl.outbuffer();
+        if (cl.getBuffer.empty)
+            return (0);
+       // fds[i].events |= POLLOUT;
+        if ((bytesent = send(sock, buf.c_str(), buf.size(), 0) )== -1)
+        {
+            if (errno == EWOULDBLOCK || errno == EAGAIN)
+                return 0; // Just try again next time POLLOUT is ready
+            throw std::runtime_error("send() failed !");
+        }
+        buf.erase(0, bytesent);
+        if (!buf.empty())
+            fds[i].events |= POLLOUT
+        else
+            fds[i].events &= ~POLLOUT;
+        
+        return 1;
+        
+    }
+    catch (const std::out_of_range& e)
+    { 
+        (void)e;
+        std::cerr << "getClient() failed (at()) !" << std::endl;
+        return -1;   
+    }
 }
 
 const std::string Server::getpass()
@@ -222,7 +258,8 @@ void Server::addClient(int fd) {
 
 void Server::removeClient(int fd)
 {
-    if (clientExists(fd)) {
+    if (clientExists(fd))
+    {
         _clients.erase(fd);
     }
 }
@@ -288,6 +325,35 @@ int Server::checkTimeout(pollvec &sockarray)
             }
         }
         i++;
+    }
+    return 1;
+}
+
+int Server::checkPollout(pollvec &fds)
+{
+    try 
+    {
+    for (size_t i = 1; i < fds.size();)
+    {
+    
+            Client &cl = getClient(fds[i].fd);
+            if (!cl.outbuffer.empty())
+            {
+                fds[i].events |= POLLOUT;
+            }
+            else
+            {
+                fds[i].events &=  ~POLLOUT;  
+            }
+            i++;
+    }
+    return 1;
+    }
+     catch (const std::out_of_range& e)
+    {
+       (void)e;
+        std::cerr << "getClient() failed (at()) !" << std::endl;
+        return -1;   
     }
     return 1;
 }

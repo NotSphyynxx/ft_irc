@@ -29,7 +29,7 @@
 #define BUFFER 1024
 #define SERVER_NAME "ft_irc.2004.ma"
 
-class Client;
+//class Client;
 #include "Client.hpp" // i guess you gonna remove it 
 typedef std::map <int , Client> cmaps;
 typedef std::vector <struct pollfd> pollvec;
@@ -58,6 +58,7 @@ class Server
         int getsocket();
         int NewConnection(std::vector <struct pollfd> &fds, unsigned int i, int sock);
         int RecieveMessage(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+        int sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock);
         const std::string &getpass();
         void removeClient(int fd);
         bool clientExists(int fd) const;
@@ -67,6 +68,7 @@ class Server
         bool sameName(std::string &nickname);
         void closeSocket(pollvec &fds, int sock);
         int checkTimeout(pollvec &fds);
+        int checkPollout(pollvec &fds);
     
 
 };
