@@ -33,6 +33,7 @@
 #define IPV4LEN 16
 #define BUFFER 1024
 #define SERVER_NAME "ft_irc.2004.ma"
+#define MAX_CHANNEL 10
 
 class Client;
 // #include "Client.hpp" // i guess you gonna remove it 

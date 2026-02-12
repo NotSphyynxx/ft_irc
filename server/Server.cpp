@@ -196,7 +196,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
     }
     if (!getClient(sock).Authentication(*this))
         return 0;
-    std::cout << "client : received " << buff << std::cout;
+    std::cout << "client : received " << buff << std::endl;
     return 1;
 }
 
@@ -320,7 +320,7 @@ int Server::checkTimeout(pollvec &sockarray)
             try 
             {
                 Client &cl = getClient(sockarray[i].fd);
-                if (((time(NULL)) - cl.getconnecttime()) > 60)
+                if (cl.getlevel(3) != REGISTRED && ((time(NULL)) - cl.getconnecttime()) > 60)
                 {
                     std::cout << "Timeout: Closing unregistered client " << sockarray[i].fd << std::endl;
                     closeSocket(sockarray, sockarray[i].fd);
