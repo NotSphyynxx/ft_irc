@@ -172,7 +172,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
     }
     if (bytes_recv == 0)
     {
-        std::cerr << "Client disconnected !" << std::cout;
+        std::cerr << "Client disconnected !" << std::endl;
         closeSocket(fds, sock);
         return -1;// check for -1 later
     }
