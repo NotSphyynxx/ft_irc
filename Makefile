@@ -10,7 +10,8 @@ SRC = main.cpp \
 	$(SERVER_DIR)/Server.cpp \
 	$(SERVER_DIR)/authentication.cpp \
 	$(SERVER_DIR)/Client.cpp \
-	$(SERVER_DIR)/parsing.cpp
+	$(SERVER_DIR)/parsing.cpp \
+	$(SERVER_DIR)/Commands.cpp
 
 HEAD = server/Server.hpp server/Client.hpp
 

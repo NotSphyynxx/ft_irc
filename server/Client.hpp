@@ -49,6 +49,7 @@ class Client
         std::string myIp;
         time_t      connectTime;
         time_t      lastActivity;
+        bool    pingsent;
 
 
         Client();
@@ -81,6 +82,8 @@ class Client
         int         getsock();
         void        sendWelcome();
         bool        Emptynames();
+        bool pingissent();
+        void setping(bool value);
        
 
 };

@@ -72,7 +72,7 @@ void Client::setBuffer(std::string buf)
 {
     this->buffer += buf;
 }
-Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL))
+Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL)), pingsent(NULL)
 {
     for (int i = 0; i < 4 ; i++)  
         setlevel(i , EMPTY);
@@ -122,3 +122,12 @@ void Client::setoutbuffer(std::string outbuff) // 0 for erase
      this->outbuffer = outbuff;
 }
 
+bool Client::pingissent()
+{
+    return this->pingsent;
+}
+
+void Client::setping(bool value)
+{
+    this->pingsent = value;
+}

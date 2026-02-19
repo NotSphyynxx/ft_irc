@@ -53,7 +53,6 @@ class Server
         cmaps _client;
         pollvec sockarrayy;
         struct addrinfo *serverI;
-        bool    pingsent;
 
         
         
@@ -77,8 +76,8 @@ class Server
         int checkPollout(pollvec &fds);
         struct addrinfo *getServerI();
         void addClient(int fd);
-        bool pingissent();
-        void setping(bool value);
+        void processCommand(pollvec &fds, std::string line, int sock);
+
 
     
 

@@ -1,7 +1,7 @@
 #include "Server.hpp"
 #include "Client.hpp"
 
-Server::Server(char *pt, char *pass) : pingsent(false)
+Server::Server(char *pt, char *pass)
 {
     struct addrinfo hints;
     struct addrinfo *p;
@@ -190,6 +190,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
         }
         if (cl.getlevel(3) != REGISTRED && !cl.Authentication(*this))
             return 0;
+        processCommand(fds, buff, sock);
         std::cout << "client " << sock  << " : received " << buff << std::endl;
     }
     catch (const std::out_of_range& e)
@@ -314,6 +315,7 @@ void Server::closeSocket(std::vector <struct pollfd> &fds, int sock)
 
 int Server::checkTimeout(pollvec &sockarray)
 {
+    time_t now = time(NULL);
 
     for (size_t i = 0; i < sockarray.size();)
     {
@@ -322,18 +324,22 @@ int Server::checkTimeout(pollvec &sockarray)
             try 
             {
                 Client &cl = getClient(sockarray[i].fd);
-                if (cl.getlevel(3) != REGISTRED && ((time(NULL)) - cl.getconnecttime()) > 60)
+                if (cl.getlevel(3) != REGISTRED && (now - cl.getconnecttime()) > 60)
                 {
                     std::cout << "Timeout: Closing unregistered client " << sockarray[i].fd << std::endl;
                     closeSocket(sockarray, sockarray[i].fd);
                     continue;
                 }
-                else if (!pingissent() &&  cl.getlevel(3) == REGISTRED && ((time(NULL)) - cl.getLastActivity()) > 60)
+                else if (!cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getLastActivity()) > 60)
                 {
                     std::string PING = "PING :" + std::string(SERVER_NAME) + "\r\n";
-                    //cl.setoutbuffer(PING);
                     cl.getoutbuffer() += PING;
-                    setping(true);              
+                    cl.setping(true);              
+                }
+                else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getLastActivity()) > 120)
+                {
+                    closeSocket(sockarray, sockarray[i].fd);
+                    continue;
                 }
             }
             catch (const std::out_of_range& e)
@@ -369,7 +375,7 @@ int Server::checkPollout(pollvec &fds)
     }
     return 1;
     }
-     catch (const std::out_of_range& e)
+    catch (const std::out_of_range& e)
     {
        (void)e;
         std::cerr << "getClient() failed (at()) !" << std::endl;
@@ -381,14 +387,4 @@ int Server::checkPollout(pollvec &fds)
 struct addrinfo *Server::getServerI()
 {
     return this->serverI;
-}
-
-bool Server::pingissent()
-{
-    return this->pingsent;
-}
-
-void Server::setping(bool value)
-{
-    this->pingsent = value;
 }
