@@ -1,7 +1,7 @@
 #include "Server.hpp"
 #include "Client.hpp"
 
-Server::Server(char *pt, char *pass)
+Server::Server(char *pt, char *pass) : pingsent(false)
 {
     struct addrinfo hints;
     struct addrinfo *p;
@@ -69,9 +69,9 @@ int Server::getsocket()
 int Server::run()
 {
     std::vector <struct pollfd> &sockarray = getpollstruct();
-    int sock = getsocket();
+    int listen_sock = getsocket();
     struct pollfd pfd;
-    pfd.fd = sock;
+    pfd.fd = listen_sock;
     pfd.events = POLLIN;
     sockarray.push_back(pfd);
     int p = -1;
@@ -93,9 +93,9 @@ int Server::run()
             {
                 if (sockarray[i].revents & POLLIN)
                 {
-                    if (sockarray[i].fd == sock) // from listener (a new connection)
+                    if (sockarray[i].fd == listen_sock) // from listener (a new connection)
                     {
-                        NewConnection(sockarray, sock);
+                        NewConnection(sockarray, listen_sock);
                     }
                     else // a client
                     {
@@ -139,11 +139,12 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
     std::cout << "new connection  from : "
     << inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char))
     << std::endl;
-    addClient(new_fd);
     try
     {
-        Client &cl = getClient(new_fd);
-        cl.setconnecttinme(time(NULL));  
+        addClient(new_fd);
+        // Client &cl = getClient(new_fd);
+        // cl.setconnecttinme(time(NULL));
+        // cl.setLastActivity(time(NULL));
     }
     catch (const std::out_of_range& e)
     {
@@ -180,6 +181,16 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
     try {
         Client &cl = getClient(sock);
         cl.appand(buff);
+        cl.setLastActivity(time(NULL));
+        if (cl.getBuffer().size() > 5120)
+        {
+            std::cerr << "Client " << sock << " is flooding. Disconnecting." << std::endl;
+            closeSocket(fds, sock); 
+            return 0;
+        }
+        if (cl.getlevel(3) != REGISTRED && !cl.Authentication(*this))
+            return 0;
+        std::cout << "client " << sock  << " : received " << buff << std::endl;
     }
     catch (const std::out_of_range& e)
     {
@@ -188,15 +199,6 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
         closeSocket(fds, sock); // i guess you should remove this 
         return 0;   
     }
-    if (getClient(sock).getBuffer().size() > 5120)
-    {
-        std::cerr << "Client " << sock << " is flooding. Disconnecting." << std::endl;
-        closeSocket(fds, sock); 
-        return 0;
-    }
-    if (!getClient(sock).Authentication(*this))
-        return 0;
-    std::cout << "client : received " << buff << std::endl;
     return 1;
 }
 
@@ -207,19 +209,19 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
         ssize_t bytesent;
         Client &cl = getClient(sock);
         std::string &buf = cl.getoutbuffer();
-        if (cl.getBuffer().empty())
+        if (buf.empty())
             return (0);
-       // fds[i].events |= POLLOUT;
-        if ((bytesent = send(sock, buf.c_str(), buf.size(), 0) )== -1)
-        {
-            if (errno == EWOULDBLOCK || errno == EAGAIN)
+            // fds[i].events |= POLLOUT;
+            if ((bytesent = send(sock, buf.c_str(), buf.size(), 0)) == -1)
+            {
+                if (errno == EWOULDBLOCK || errno == EAGAIN)
                 return 0; // Just try again next time POLLOUT is ready
-            throw std::runtime_error("send() failed !");
-        }
-        buf.erase(0, bytesent);
+                throw std::runtime_error("send() failed !");
+            }
+            buf.erase(0, bytesent);
         if (!buf.empty())
             fds[i].events |= POLLOUT;
-        else
+       // else
             fds[i].events &= ~POLLOUT;
         
         return 1;
@@ -326,6 +328,13 @@ int Server::checkTimeout(pollvec &sockarray)
                     closeSocket(sockarray, sockarray[i].fd);
                     continue;
                 }
+                else if (!pingissent() &&  cl.getlevel(3) == REGISTRED && ((time(NULL)) - cl.getLastActivity()) > 60)
+                {
+                    std::string PING = "PING :" + std::string(SERVER_NAME) + "\r\n";
+                    //cl.setoutbuffer(PING);
+                    cl.getoutbuffer() += PING;
+                    setping(true);              
+                }
             }
             catch (const std::out_of_range& e)
             {
@@ -349,6 +358,7 @@ int Server::checkPollout(pollvec &fds)
             Client &cl = getClient(fds[i].fd);
             if (!cl.getoutbuffer().empty())
             {
+                std::cout << "buffer in checkpollout is not empty ==== " << cl.getoutbuffer() << std::endl;
                 fds[i].events |= POLLOUT;
             }
             else
@@ -371,4 +381,14 @@ int Server::checkPollout(pollvec &fds)
 struct addrinfo *Server::getServerI()
 {
     return this->serverI;
+}
+
+bool Server::pingissent()
+{
+    return this->pingsent;
+}
+
+void Server::setping(bool value)
+{
+    this->pingsent = value;
 }

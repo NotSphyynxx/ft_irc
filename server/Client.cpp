@@ -72,7 +72,7 @@ void Client::setBuffer(std::string buf)
 {
     this->buffer += buf;
 }
-Client::Client(int sock) : mysocket(sock)
+Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL))
 {
     for (int i = 0; i < 4 ; i++)  
         setlevel(i , EMPTY);
@@ -105,7 +105,14 @@ void Client::setconnecttinme(time_t tm)
 {
     this->connectTime = tm;
 }
-
+time_t &Client::getLastActivity()
+{
+    return this->lastActivity;
+}
+void Client::setLastActivity(time_t tm)
+{
+    this->lastActivity = tm;
+}
 std::string &Client::getoutbuffer()
 {
     return this->outbuffer;

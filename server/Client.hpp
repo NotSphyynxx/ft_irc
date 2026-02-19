@@ -48,6 +48,7 @@ class Client
         std::string realname;
         std::string myIp;
         time_t      connectTime;
+        time_t      lastActivity;
 
 
         Client();
@@ -61,6 +62,7 @@ class Client
         std::string   &getIp();
         time_t        &getconnecttime();
         std::string   &getoutbuffer();
+        time_t        &getLastActivity();
         void          setoutbuffer(std::string outbuffer);
         void          setIp(std::string Ip);
         void          setlevel(unsigned int index, Level value);
@@ -69,6 +71,7 @@ class Client
         void          setrealname(std::string _realname);
         void          setBuffer(std::string buffer);
         void          setconnecttinme(time_t tm);
+        void          setLastActivity(time_t tm);
         std::string   appand(std::string buf);
         void        process_buffer();
         int         Authentication(Server &sv);
