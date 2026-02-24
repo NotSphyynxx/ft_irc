@@ -68,7 +68,7 @@ int Server::getsocket()
 
 int Server::run()
 {
-    std::vector <struct pollfd> &sockarray = getpollstruct();
+    pollvec &sockarray = getpollstruct();
     int listen_sock = getsocket();
     struct pollfd pfd;
     pfd.fd = listen_sock;
@@ -136,13 +136,13 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
     tmp.events = POLLIN;
     fds.push_back(tmp);
     hp =  (struct sockaddr_in *) &st;
-    std::cout << "new connection  from : "
-    << inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char))
-    << std::endl;
+    std::string theIp = inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char));
+    std::cout << "new connection  from : " << theIp << std::endl;
     try
     {
         addClient(new_fd);
-        // Client &cl = getClient(new_fd);
+        Client &cl = getClient(new_fd);
+        cl.setIp(theIp);
         // cl.setconnecttinme(time(NULL));
         // cl.setLastActivity(time(NULL));
     }
@@ -345,8 +345,7 @@ int Server::checkTimeout(pollvec &sockarray)
             catch (const std::out_of_range& e)
             {
                 (void)e;
-                std::cerr << "getClient() failed (at()) !" << std::endl;
-                return -1;   
+                continue;   
             }
         }
         i++;
@@ -356,15 +355,14 @@ int Server::checkTimeout(pollvec &sockarray)
 
 int Server::checkPollout(pollvec &fds)
 {
-    try 
-    {
     for (size_t i = 1; i < fds.size();)
     {
+        try 
+        {
     
             Client &cl = getClient(fds[i].fd);
             if (!cl.getoutbuffer().empty())
             {
-                std::cout << "buffer in checkpollout is not empty ==== " << cl.getoutbuffer() << std::endl;
                 fds[i].events |= POLLOUT;
             }
             else
@@ -372,14 +370,12 @@ int Server::checkPollout(pollvec &fds)
                 fds[i].events &=  ~POLLOUT;  
             }
             i++;
-    }
-    return 1;
-    }
-    catch (const std::out_of_range& e)
-    {
-       (void)e;
-        std::cerr << "getClient() failed (at()) !" << std::endl;
-        return -1;   
+        }
+        catch (const std::out_of_range& e)
+        {
+            (void)e;
+            continue;  
+        }
     }
     return 1;
 }
@@ -387,4 +383,29 @@ int Server::checkPollout(pollvec &fds)
 struct addrinfo *Server::getServerI()
 {
     return this->serverI;
+}
+
+void Server::broadcast(pollvec &fds, std::string message)
+{
+    // fds here are the ones that live in a specific channel 
+    //When your teammate finally builds the Channel 
+    //class, they will store FDs. If you close a 
+    //socket, you must make sure they know so they can 
+    //remove that FD from their channel lists.
+    size_t i = 1;
+    
+    for (; i < fds.size();)
+    {
+        try 
+        {
+            Client &cl = getClient(fds[i].fd);
+            cl.getoutbuffer() += message;
+            i++;
+        }
+        catch (const std::out_of_range& e)
+        {
+           (void)e;
+            continue;
+        }
+    }
 }

@@ -77,7 +77,7 @@ class Server
         struct addrinfo *getServerI();
         void addClient(int fd);
         void processCommand(pollvec &fds, std::string line, int sock);
-
+        void broadcast(pollvec &fds, std::string message);
 
     
 
