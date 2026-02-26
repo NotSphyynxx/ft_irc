@@ -49,7 +49,8 @@ class Client
         std::string myIp;
         time_t      connectTime;
         time_t      lastActivity;
-        bool    pingsent;
+        bool        pingsent;
+        time_t      whenpingsent;
 
 
         Client();
@@ -64,6 +65,7 @@ class Client
         time_t        &getconnecttime();
         std::string   &getoutbuffer();
         time_t        &getLastActivity();
+        time_t        &getwhenpingsent();
         void          setoutbuffer(std::string outbuffer);
         void          setIp(std::string Ip);
         void          setlevel(unsigned int index, Level value);

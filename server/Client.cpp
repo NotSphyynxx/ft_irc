@@ -131,3 +131,8 @@ void Client::setping(bool value)
 {
     this->pingsent = value;
 }
+
+time_t &Client::getwhenpingsent()
+{
+    return whenpingsent;
+}

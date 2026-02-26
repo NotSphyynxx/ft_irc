@@ -20,7 +20,7 @@
 #include <map>
 #include <string>
 #include <ctime>
-// #include "windows.h"
+// #include <windows.h>
 #include <cerrno>
 #include <sstream>
 #include <cstdlib>
@@ -30,7 +30,7 @@
 
 #define PORT 2020
 #define REQUEST 10
-#define IPV4LEN 16
+#define IPV4LEN 16 // the ipv4 to char has 16 char including \0
 #define BUFFER 1024
 #define SERVER_NAME "ft_irc.2004.ma"
 #define MAX_CHANNEL 10
@@ -53,6 +53,7 @@ class Server
         cmaps _client;
         pollvec sockarrayy;
         struct addrinfo *serverI;
+        std::string serverIp;
 
         
         
@@ -61,10 +62,12 @@ class Server
         ~Server();
         int run();
         int getsocket();
+        std::string getServerIp();
+        void setServerIp(std::string ip);
         int NewConnection(std::vector <struct pollfd> &fds, int sock);
         int RecieveMessage(std::vector <struct pollfd> &fds, int sock);
         int sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock);
-        const std::string &getpass() const;
+        std::string getpass();
         void removeClient(int fd);
         bool clientExists(int fd) const;
         Client& getClient(int fd);

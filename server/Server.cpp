@@ -55,15 +55,13 @@ Server::Server(char *pt, char *pass)
         close(sockfd);
         throw std::runtime_error("listen failed !");
     }
+    struct sockaddr_in *tmp = (struct sockaddr_in *) &p;
+    char ipchar[IPV4LEN];
+    inet_ntop(tmp->sin_family, &tmp->sin_addr, ipchar, sizeof(ipchar));
+    setServerIp(ipchar);
     std::cout << "server: waiting for connections... " << std::endl;
     freeaddrinfo(server_info);
     server_info  = NULL;
-}
-
-
-int Server::getsocket()
-{
-    return (this->sockfd);
 }
 
 int Server::run()
@@ -118,7 +116,6 @@ int Server::run()
 
 }
 
-
 int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 {
     struct sockaddr_storage st;
@@ -136,13 +133,13 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
     tmp.events = POLLIN;
     fds.push_back(tmp);
     hp =  (struct sockaddr_in *) &st;
-    std::string theIp = inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char));
-    std::cout << "new connection  from : " << theIp << std::endl;
+    inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char));
+    std::cout << "new connection  from : " << ipv4char << std::endl;
     try
     {
         addClient(new_fd);
         Client &cl = getClient(new_fd);
-        cl.setIp(theIp);
+        cl.setIp(ipv4char);
         // cl.setconnecttinme(time(NULL));
         // cl.setLastActivity(time(NULL));
     }
@@ -186,7 +183,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
         {
             std::cerr << "Client " << sock << " is flooding. Disconnecting." << std::endl;
             closeSocket(fds, sock); 
-            return 0;
+            return 0;            
         }
         if (cl.getlevel(3) != REGISTRED && !cl.Authentication(*this))
             return 0;
@@ -236,20 +233,10 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
     }
 }
 
-const std::string &Server::getpass() const
-{
-    return this->password;
-}
-
 Server::~Server()
 {
    // freeaddrinfo(getServerI());
    // close(sockfd);
-}
-
-Client& Server::getClient(int fd)
-{
-    return _client.at(fd); 
 }
 
 bool Server::clientExists(int fd) const
@@ -276,15 +263,6 @@ void Server::removeClient(int fd)
     }
 }
 
-const cmaps &Server::getcmaps()
-{
-    return this->_client;
-}
-
-pollvec &Server::getpollstruct()
-{
-    return this->sockarrayy;
-}
 bool Server::sameName(std::string &nickname)
 {
     cmaps tmp = this->getcmaps();
@@ -297,11 +275,11 @@ bool Server::sameName(std::string &nickname)
     }
     return false;
 }
+
 void Server::closeSocket(std::vector <struct pollfd> &fds, int sock)
 {
     std::vector <struct pollfd>::iterator it = fds.begin();
-    std::vector <struct pollfd>::iterator last = fds.end();
-    for (; it != last; it++)
+    for (; it != fds.end(); it++)
     {
         if (it->fd == sock)
         {
@@ -334,10 +312,12 @@ int Server::checkTimeout(pollvec &sockarray)
                 {
                     std::string PING = "PING :" + std::string(SERVER_NAME) + "\r\n";
                     cl.getoutbuffer() += PING;
-                    cl.setping(true);              
+                    cl.setping(true);
+                    cl.getwhenpingsent() = time(NULL);         
                 }
-                else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getLastActivity()) > 120)
+                else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getwhenpingsent()) > 60)
                 {
+                    std::cout << "Timeout: Closing client " + cl.getsock() << sockarray[i].fd << std::endl;
                     closeSocket(sockarray, sockarray[i].fd);
                     continue;
                 }
@@ -380,10 +360,7 @@ int Server::checkPollout(pollvec &fds)
     return 1;
 }
 
-struct addrinfo *Server::getServerI()
-{
-    return this->serverI;
-}
+
 
 void Server::broadcast(pollvec &fds, std::string message)
 {
