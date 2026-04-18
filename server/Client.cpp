@@ -55,6 +55,7 @@ void Client::setusername(std::string s)
     std::string endmsg = "you're username is " + getusername() + "\r\n";
     send(getsock(), endmsg.c_str(), endmsg.size(), 0);
 }
+
 void Client::setrealname(std::string s)
 {
     std::string clean;
@@ -72,9 +73,10 @@ void Client::setBuffer(std::string buf)
 {
     this->buffer += buf;
 }
-Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL)), pingsent(NULL)
+
+Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL)), pingsent(false)
 {
-    for (int i = 0; i < 4 ; i++)  
+    for (int i = 0; i < 4 ; i++)
         setlevel(i , EMPTY);
 }
 

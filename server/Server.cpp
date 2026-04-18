@@ -8,16 +8,16 @@ Server::Server(char *pt, char *pass)
     struct addrinfo *server_info;
     int check  = -1;
     myport(pt);
-    
+
     sockfd = -1;
     if (mypass(pass))
-        this->password = pass;   
+        this->password = pass;
     memset(&hints, 0 , sizeof(hints));
 
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // force the socket to listen to all net interface (ip is 0.0.0.0 )
-    
+
 
     if ((check = getaddrinfo(NULL, pt, &hints, &server_info)) != 0)
     {
@@ -25,7 +25,7 @@ Server::Server(char *pt, char *pass)
     }
 
     for (p = server_info; p != NULL; p = p->ai_next)
-    { 
+    {
         if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
             continue;
         if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1)
@@ -79,17 +79,17 @@ int Server::run()
     sockarray.push_back(pfd);
 
     int p = -1;
-    
+
     while (1)
     {
         // check if there is data waiting in the client outputbuffer
         checkPollout(sockarray);
 
-        p = poll(sockarray.data(), sockarray.size(), 3000); // so poll wait up to the time specified if there is no data flow it return 0 
+        p = poll(sockarray.data(), sockarray.size(), 3000); // so poll wait up to the time specified if there is no data flow it return 0
 
         if (p < 0)
         {
-            if (errno == EINTR) 
+            if (errno == EINTR)
                 continue; // Just a signal, go back to the top of the while(1)
         if (p == -1)
             throw std::runtime_error("poll failed");
@@ -115,7 +115,7 @@ int Server::run()
                         RecieveMessage(sockarray, sockarray[i].fd);//sock
                     }
                 }
-                if (sockarray[i].revents & (POLLHUP | POLLERR)) // in case we lost the connection in specific sockets or it may be an error 
+                if (sockarray[i].revents & (POLLHUP | POLLERR)) // in case we lost the connection in specific sockets or it may be an error
                 {
                     closeSocket(sockarray, sockarray[i].fd);
                     continue;
@@ -136,32 +136,38 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
     struct sockaddr_storage st;
     struct sockaddr_in *hp;
     socklen_t sz = sizeof(st);
-    char    ipv4char[IPV4LEN];
+    char    ipv4char[INET_ADDRSTRLEN];
 
     int new_fd = -1;
     if ((new_fd = accept(sock,(sockaddr *) &st, &sz)) == -1)
     {
         return -1;
     }
-    
-    // add the incoming connection to our pollfd 
+    if (fcntl(new_fd, F_SETFD, O_NONBLOCK) == -1)
+    {
+        std::cerr << "fcntl() failed on new connection!" << std::endl;
+        closeSocket(fds, new_fd);
+        return -1;
+    }
+
+    // add the incoming connection to our pollfd
     struct pollfd tmp;
     tmp.fd = new_fd;
     tmp.events = POLLIN;
     fds.push_back(tmp);
 
-    // we manipulate & point to the sockaddr_storage as sock..in 
+    // we manipulate & point to the sockaddr_storage as sock..in
     hp =  (struct sockaddr_in *) &st;
 
     inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char));
-    // std::cout << "new connection  from : " << ipv4char << std::endl;
 
     try
     {
         addClient(new_fd);
         Client &cl = getClient(new_fd);
         cl.setIp(ipv4char);
-        std::cout << "new connection  from : " << cl.getrealname() << "with an ip of : " <<  ipv4char << std::endl;
+        // hp->sin_port is in Network Byte Order, so we use ntohs()
+        std::cout << "New connection from: " << ipv4char << " : "  << ntohs(hp->sin_port) << std::endl;
 
         // cl.setconnecttinme(time(NULL));
         // cl.setLastActivity(time(NULL));
@@ -171,7 +177,7 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
         (void)e;
         std::cerr << "getClient() failed (at()) !" << std::endl;
         closeSocket(fds, new_fd);
-        return 0;   
+        return 0;
     }
     return 1;
 }
@@ -205,10 +211,10 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
         if (cl.getBuffer().size() > 5120)
         {
             std::cerr << "Client " << sock << " is flooding. Disconnecting." << std::endl;
-            closeSocket(fds, sock); 
-            return 0;            
+            closeSocket(fds, sock);
+            return 0;
         }
-        if (cl.getlevel(3) != REGISTRED && !cl.Authentication(*this))
+        if (!cl.Authentication(*this) && cl.getlevel(3) != REGISTRED)
             return 0;
         processCommand(fds, buff, sock);
         std::cout << "client " << sock  << " : received " << buff << std::endl;
@@ -217,15 +223,15 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
     {
         (void)e;
         std::cerr << "getClient() failed (at()) !" << std::endl;
-        closeSocket(fds, sock); // i guess you should remove this 
-        return 0;   
+        closeSocket(fds, sock); // i guess you should remove this
+        return 0;
     }
     return 1;
 }
 
 int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock)
 {
-    try 
+    try
     {
         ssize_t bytesent;
         Client &cl = getClient(sock);
@@ -236,7 +242,7 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
             // fds[i].events |= POLLOUT;
             if ((bytesent = send(sock, buf.c_str(), buf.size(), 0)) == -1)
             {
-                if (errno == EWOULDBLOCK || errno == EAGAIN) // in a blocking socket the program would wait but since we set it to no blocking the func just return 
+                if (errno == EWOULDBLOCK || errno == EAGAIN) // in a blocking socket the program would wait but since we set it to no blocking the func just return
                     return 0; // Just try again next time POLLOUT is ready
                 throw std::runtime_error("send() failed !");
             }
@@ -245,15 +251,15 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
             fds[i].events |= POLLOUT;
        else
             fds[i].events &= ~POLLOUT;
-        
+
         return 1;
-        
+
     }
     catch (const std::out_of_range& e)
-    { 
+    {
         (void)e;
         std::cerr << "getClient() failed (at()) !" << std::endl;
-        return -1;   
+        return -1;
     }
 }
 
@@ -265,7 +271,7 @@ Server::~Server()
 
 bool Server::clientExists(int fd) const
 {
-    return _client.find(fd) != _client.end(); // false = we found end() 
+    return _client.find(fd) != _client.end(); // false = we found end()
 }
 
 void Server::addClient(int fd) {
@@ -295,7 +301,7 @@ bool Server::sameName(std::string &nickname)
     for (; it != tmp.end(); it++)
     {
         if (it->second.getnickname() == nickname)
-            return true;   
+            return true;
     }
     return false;
 }
@@ -323,7 +329,7 @@ int Server::checkTimeout(pollvec &sockarray)
     {
         if (i > 0)
         {
-            try 
+            try
             {
                 Client &cl = getClient(sockarray[i].fd);
                 if (cl.getlevel(3) != REGISTRED && (now - cl.getconnecttime()) > 60)
@@ -337,7 +343,7 @@ int Server::checkTimeout(pollvec &sockarray)
                     std::string PING = "PING :" + std::string(SERVER_NAME) + "\r\n";
                     cl.getoutbuffer() += PING;
                     cl.setping(true);
-                    cl.getwhenpingsent() = now;         
+                    cl.getwhenpingsent() = now;
                 }
                 else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getwhenpingsent()) > 60)
                 {
@@ -349,7 +355,7 @@ int Server::checkTimeout(pollvec &sockarray)
             catch (const std::out_of_range& e)
             {
                 (void)e;
-                continue;   
+                continue;
             }
         }
         i++;
@@ -361,9 +367,9 @@ int Server::checkPollout(pollvec &fds)
 {
     for (size_t i = 1; i < fds.size();)
     {
-        try 
+        try
         {
-    
+
             Client &cl = getClient(fds[i].fd);
             if (!cl.getoutbuffer().empty())
             {
@@ -371,14 +377,14 @@ int Server::checkPollout(pollvec &fds)
             }
             else
             {
-                fds[i].events &=  ~POLLOUT;  
+                fds[i].events &=  ~POLLOUT;
             }
             i++;
         }
         catch (const std::out_of_range& e)
         {
             (void)e;
-            continue;  
+            continue;
         }
     }
     return 1;
@@ -388,17 +394,17 @@ int Server::checkPollout(pollvec &fds)
 
 void Server::broadcast(pollvec &fds, std::string message)
 {
-    // fds here are the ones that live in a specific channel 
-    //When you finally builds the Channel 
-    //class, you will store FDs. If you close a 
-    //socket, you must make sure they know so they can 
+    // fds here are the ones that live in a specific channel
+    //When you finally builds the Channel
+    //class, you will store FDs. If you close a
+    //socket, you must make sure they know so they can
     //remove that FD from their channel lists.
 
     size_t i = 1;
-    
+
     for (; i < fds.size();)
     {
-        try 
+        try
         {
             Client &cl = getClient(fds[i].fd);
             cl.getoutbuffer() += message;

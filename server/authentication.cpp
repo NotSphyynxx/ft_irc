@@ -22,7 +22,10 @@ bool Client::Emptynames()//true (empty)
 bool Client::pass(std::string &pass, Server &sv)
 {
     if (getlevel(0) == hasPASS)
-        return true;
+    {
+        getoutbuffer() += ERR_ALREADYREG(SERVER_NAME);
+        return false;
+    }
     if (pass == sv.getpass())
     {
         setlevel(0, hasPASS);
@@ -30,8 +33,7 @@ bool Client::pass(std::string &pass, Server &sv)
     }
     else
     {
-        std::string error = ":" + std::string(SERVER_NAME) + " 464 :Password incorrect\nClosing unregistered client...\r\n";
-        this->getoutbuffer() += error;
+        this->getoutbuffer() += ERR_PASSWDMISMATCH(SERVER_NAME);
         sv.closeSocket(sv.getpollstruct(), getsock());
     }
     return false;
@@ -41,20 +43,18 @@ bool Client::nick(std::string &nickname, Server &sv)
 {
     if (nickname.empty())
     {
-        std::string error = ":ft_irc.2004.ma 431 :No nickname given\r\n";
-        this->getoutbuffer() += error;
+        this->getoutbuffer() += ERR_NONICKNAME(SERVER_NAME);
         return false;
     }
     if (nickname.size() > 9)
     {
-        std::string error = ":ft_irc.2004.ma 432 :Nickname too long\r\n";
-        this->getoutbuffer() += error;
+        //Nickname too long
+        this->getoutbuffer() += ERR_ERRONEUSNICK(SERVER_NAME, nickname);
         return false;
     }
     if (!isalpha(nickname[0]) && !isSpecial(nickname[0]))
     {
-        std::string error = ":ft_irc.2004.ma 432 :Erroneous nickname\r\n";
-        this->getoutbuffer() += error;
+        this->getoutbuffer() += ERR_ERRONEUSNICK(SERVER_NAME, nickname);
         return false;
     }
     for (size_t i = 0; i < nickname.size(); i++)
@@ -64,15 +64,13 @@ bool Client::nick(std::string &nickname, Server &sv)
             break;
         if (!isdigit(c) && !isalpha(c) && !isSpecial(c))
         {
-            std::string error = ":ft_irc.2004.ma 432 :Erroneous nickname\r\n";
-            this->getoutbuffer() += error;
+            this->getoutbuffer() += ERR_ERRONEUSNICK(SERVER_NAME, nickname);
             return false;
         }
     }// you need to check if there is another client with the same nickname
     if (sv.sameName(nickname))
     {
-        std::string error = ":" + std::string(SERVER_NAME) + " 433 Nickname is already in use\r\n";
-        this->getoutbuffer() += error;
+        this->getoutbuffer() += ERR_NICKINUSE(SERVER_NAME, nickname);
         return false;
     }
     setlevel(1, hasNICK);
@@ -90,22 +88,23 @@ bool  Client::user(std::string &extracted)
     std::string mode;
     std::string unused;
     std::string realname; //  start with :
-  
+
     if (getlevel(3) == REGISTRED)
     {
-        std::string error = ":server 462 :You may not reregister\r\n";
-        this->getoutbuffer() += error;
-        return false;  
+        this->getoutbuffer() += ERR_NOTREGISTERED(SERVER_NAME);
+        return false;
     }
     ss >> cmd;
     ss >> user;
     ss >> mode;
     ss >> unused;
+
     std::string rest_of_line;
     std::getline(ss, rest_of_line);
-    if (user.empty() || mode.empty() || unused.empty()) {
-        std::string error = "461 USER :Not enough parameters\r\n";
-        this->getoutbuffer() += error;
+
+    if (user.empty() || mode.empty() || unused.empty())
+    {
+        this->getoutbuffer() += ERR_NEEDMOREPARAMS(SERVER_NAME, extracted);
         return false;
     }
     size_t col_pos = rest_of_line.find(':');
@@ -113,7 +112,7 @@ bool  Client::user(std::string &extracted)
         realname = rest_of_line.substr(col_pos + 1);
     } else {
         // Fallback if they didn't put a colon (rare but possible)
-        realname = rest_of_line; 
+        realname = rest_of_line;
     }
     setusername(user);
     setrealname(realname);
@@ -133,16 +132,16 @@ void Client::sendWelcome()
     std::string host = getIp(); // Or hostname if you have it
     std::string serverName = "ft_irc.2004.ma";
     std::string welcome;
-    
-    welcome += ":" + serverName + " 001 " + nick + 
+
+    welcome += ":" + serverName + " 001 " + nick +
                          " :Welcome to the IRC Network " + nick + "!" + user + "@" + host + "\r\n";
 
-    welcome += ":" + serverName + " 002 " + nick + 
+    welcome += ":" + serverName + " 002 " + nick +
                          " :Your host is " + serverName + ", running version 1.0\r\n";
-    
-    welcome += ":" + serverName + " 003 " + nick + 
+
+    welcome += ":" + serverName + " 003 " + nick +
                          " :This server was created Jan 01 2024\r\n";
-    welcome += ":" + serverName + " 004 " + nick + 
+    welcome += ":" + serverName + " 004 " + nick +
                          " " + serverName + " 1.0 io itkol\r\n";
 
     this->outbuffer += welcome;
@@ -152,17 +151,20 @@ void Client::sendWelcome()
 int Client::Authentication(Server &sv)
 {
     size_t pos;
-    std::string &copy = getBuffer();// later you will know if you need a copy or not 
+    std::string &copy = getBuffer();// later you will know if you need a copy or not
     std::string extracted;
     std::string cmd;
     std::string value;
-    
+
+    if (this->getlevel(3) == REGISTRED) // just added
+        return  1;
+
     while ((pos = copy.find("\r\n")) != std::string::npos)
     {
         extracted = copy.substr(0, pos);
         std::stringstream sp(extracted);
         sp >> cmd >> value;
-        
+
         if (cmd == "PASS")
         {
             if (!this->pass(value, sv))
@@ -178,15 +180,14 @@ int Client::Authentication(Server &sv)
         }
         else if (cmd == "NICK")
         {
-            if (getlevel(0) == hasPASS)//has_pass 
+            if (getlevel(0) == hasPASS)//has_pass
             {
                 if (!this->nick(value, sv))
                     return (copy.erase(0 , pos + 2), 0);
             }
             else
             {
-                std::string err = ":ft_irc.2004.ma 451 * :You have not registered\r\n";
-                this->getoutbuffer()+= err;
+                this->getoutbuffer()+= ERR_NOTREGISTERED(SERVER_NAME);
                 return (copy.erase(0 , pos + 2), 0);
             }
         }
@@ -199,13 +200,19 @@ int Client::Authentication(Server &sv)
             }
              else
             {
-                std::string err = ":ft_irc.2004.ma 451 * :You have not registered\r\n";
-                this->getoutbuffer() += err;
+                this->getoutbuffer() += this->getoutbuffer()+= ERR_NOTREGISTERED(SERVER_NAME);;
                 return (copy.erase(0 , pos + 2),0);
             }
-            
+
         }
+        else if (cmd == "QUIT")
+        {
+            sv.closeSocket(sv.getpollstruct(), this->getsock());
+        }
+        else
+            return (copy.erase(0 , pos + 2),0);
         copy.erase(0 , pos + 2);
     }
+
     return 1;
 }

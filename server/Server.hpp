@@ -1,4 +1,4 @@
-#ifndef SERVER_HPP 
+#ifndef SERVER_HPP
 #define SERVER_HPP
 
 #include <sys/socket.h> // Core socket functions
@@ -36,14 +36,24 @@
 #define MAX_CHANNEL 10
 #define MAX_CLIENT 10000
 
+#define ERR_NOTREGISTERED(server) (":" + std::string(server) + " 451 * :You have not registered\r\n")
+#define ERR_CLOSINGLINK(host, reason) ("ERROR :Closing Link: " + std::string(host) + " (" + std::string(reason) + ")\r\n")
+#define ERR_PASSWDMISMATCH(s) (":" + std::string(s) + " 464 * :Password incorrect\r\n")
+#define ERR_NONICKNAME(s) (":" + std::string(s) + " 431 * :No nickname given\r\n")
+#define ERR_ERRONEUSNICK(s, n) (":" + std::string(s) + " 432 * " + std::string(n) + " :Erroneous nickname\r\n")
+#define ERR_NICKINUSE(s, n) (":" + std::string(s) + " 433 * " + std::string(n) + " :Nickname is already in use\r\n")
+#define ERR_ALREADYREG(s) (":" + std::string(s) + " 462 * :Unauthorized command (already registered)\r\n")
+#define ERR_NEEDMOREPARAMS(s, c) (":" + std::string(s) + " 461 * " + std::string(c) + " :Not enough parameters\r\n")
+
+
 class Client;
-// #include "Client.hpp" // i guess you gonna remove it 
+// #include "Client.hpp" // i guess you gonna remove it
 typedef std::map <int , Client> cmaps;
 typedef std::vector <struct pollfd> pollvec;
 
 class Server
 {
-   
+
     private :
         int         sockfd;
         std::string password;
@@ -55,8 +65,8 @@ class Server
         struct addrinfo *serverI;
         std::string serverIp;
 
-        
-        
+
+
     public :
         Server(char *port, char *password);
         ~Server();
@@ -82,7 +92,7 @@ class Server
         void processCommand(pollvec &fds, std::string line, int sock);
         void broadcast(pollvec &fds, std::string message);
 
-    
+
 
 };
 
