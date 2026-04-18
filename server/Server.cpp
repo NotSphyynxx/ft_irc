@@ -193,7 +193,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
     {
         if (errno == EWOULDBLOCK || errno == EAGAIN)
             return 0;
-        std::cerr << "recv failed !" << std::cout;
+        std::cerr << "recv failed !" << std::endl;
         closeSocket(fds, sock);
         return -1;// check for -1 later
     }
