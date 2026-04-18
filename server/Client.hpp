@@ -41,7 +41,7 @@ class Client
     private :
         int         mysocket;
         std::string buffer;
-        std::string outbuffer;
+        std::string outbuffer; // the a client want to send data to an specific client all he need is to fill that buffer then the server send it 
         Level       rank[4];
         std::string username;
         std::string nickname;
