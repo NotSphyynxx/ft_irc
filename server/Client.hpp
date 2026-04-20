@@ -27,66 +27,67 @@
 class Server;
 enum Level
 {
-    hasPASS,
-    hasNICK,
-    hasUSER,
-    REGISTRED,
-    EMPTY,
+	hasPASS,
+	hasNICK,
+	hasUSER,
+	REGISTRED,
+	EMPTY,
 };
 
 
 
 class Client
 {
-    private :
-        int         mysocket;
-        std::string buffer;
-        std::string outbuffer; // the a client want to send data to an specific client all he need is to fill that buffer then the server send it 
-        Level       rank[4];
-        std::string username;
-        std::string nickname;
-        std::string realname;
-        std::string myIp;
-        time_t      connectTime;
-        time_t      lastActivity;
-        bool        pingsent;
-        time_t      whenpingsent;
+	private :
+		int         mysocket;
+		std::string buffer;
+		std::string outbuffer; // the a client want to send data to an specific client all he need is to fill that buffer then the server send it
+		Level       rank[4];
+		std::string username;
+		std::string nickname;
+		std::string realname;
+		std::string myIp;
+		time_t      connectTime;
+		time_t      lastActivity;
+		bool        pingsent;
+		time_t      whenpingsent;
 
 
-        Client();
-    public:
-        Client(int sock);
-        Level         getlevel(unsigned int i);
-        std::string   &getusername();
-        std::string   &getnickname();
-        std::string   &getrealname();
-        std::string   &getBuffer();
-        std::string   &getIp();
-        time_t        &getconnecttime();
-        std::string   &getoutbuffer();
-        time_t        &getLastActivity();
-        time_t        &getwhenpingsent();
-        void          setoutbuffer(std::string outbuffer);
-        void          setIp(std::string Ip);
-        void          setlevel(unsigned int index, Level value);
-        void          setusername(std::string _username);
-        void          setnickname(std::string _nickname);
-        void          setrealname(std::string _realname);
-        void          setBuffer(std::string buffer);
-        void          setconnecttinme(time_t tm);
-        void          setLastActivity(time_t tm);
-        std::string   appand(std::string buf);
-        void        process_buffer();
-        int         Authentication(Server &sv);
-        bool         user(std::string &extracted);
-        bool        pass(std::string &pass,  Server &sv);
-        bool        nick(std::string &nickname, Server &sv);
-        int         getsock();
-        void        sendWelcome();
-        bool        Emptynames();
-        bool pingissent();
-        void setping(bool value);
-       
+		Client();
+	public:
+		Client(int sock);
+		Level         getlevel(unsigned int i);
+		std::string   &getusername();
+		std::string   &getnickname();
+		std::string   &getrealname();
+		std::string   &getBuffer();
+		std::string   &getIp();
+		time_t        &getconnecttime();
+		std::string   &getoutbuffer();
+		time_t        &getLastActivity();
+		time_t        &getwhenpingsent();
+		void          setoutbuffer(std::string outbuffer);
+		void          setIp(std::string Ip);
+		void          setlevel(unsigned int index, Level value);
+		void          setusername(std::string _username);
+		void          setnickname(std::string _nickname);
+		void          setrealname(std::string _realname);
+		void          setBuffer(std::string buffer);
+		void          setconnecttinme(time_t tm);
+		void          setLastActivity(time_t tm);
+		std::string   &appand(const std::string &buf);
+		void        process_buffer();
+		int         Authentication(Server &sv);
+		bool         user(std::string &extracted);
+		bool        pass(std::string &pass,  Server &sv);
+		bool        nick(std::string &nickname, Server &sv);
+		int         getsock();
+		void        sendWelcome();
+		bool        Emptynames();
+		bool 		pingissent();
+		void 		setping(bool value);
+		std::string	getPrefix();
+
 
 };
 #endif

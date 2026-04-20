@@ -24,6 +24,7 @@
 #include <cerrno>
 #include <sstream>
 #include <cstdlib>
+#include <algorithm>
 
 //#include <Client.hpp>
 
@@ -54,43 +55,44 @@ typedef std::vector <struct pollfd> pollvec;
 class Server
 {
 
-    private :
-        int         sockfd;
-        std::string password;
-        Server &operator=(const Server  &other);
-        Server(const Server &other);
-        Server();
-        cmaps _client;
-        pollvec sockarrayy;
-        struct addrinfo *serverI;
-        std::string serverIp;
+	private :
+		int         sockfd;
+		std::string password;
+		Server &operator=(const Server  &other);
+		Server(const Server &other);
+		Server();
+		cmaps _client;
+		pollvec sockarrayy;
+		struct addrinfo *serverI;
+		std::string serverIp;
 
 
 
-    public :
-        Server(char *port, char *password);
-        ~Server();
-        int run();
-        int getsocket();
-        std::string getServerIp();
-        void setServerIp(std::string ip);
-        int NewConnection(std::vector <struct pollfd> &fds, int sock);
-        int RecieveMessage(std::vector <struct pollfd> &fds, int sock);
-        int sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock);
-        std::string getpass();
-        void removeClient(int fd);
-        bool clientExists(int fd) const;
-        Client& getClient(int fd);
-        const cmaps & getcmaps();
-        pollvec &getpollstruct();
-        bool sameName(std::string &nickname);
-        void closeSocket(pollvec &fds, int sock);
-        int checkTimeout(pollvec &fds);
-        int checkPollout(pollvec &fds);
-        struct addrinfo *getServerI();
-        void addClient(int fd);
-        void processCommand(pollvec &fds, std::string line, int sock);
-        void broadcast(pollvec &fds, std::string message);
+	public :
+		Server(char *port, char *password);
+		~Server();
+		int run();
+		int getsocket();
+		std::string getServerIp();
+		void setServerIp(std::string ip);
+		int NewConnection(std::vector <struct pollfd> &fds, int sock);
+		int RecieveMessage(std::vector <struct pollfd> &fds, int sock);
+		int sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+		std::string getpass();
+		void removeClient(int fd);
+		bool clientExists(int fd) const;
+		Client& getClient(int fd);
+		const cmaps & getcmaps();
+		pollvec &getpollstruct();
+		bool sameName(std::string &nickname);
+		void closeSocket(pollvec &fds, int sock);
+		int checkTimeout(pollvec &fds);
+		int checkPollout(pollvec &fds);
+		struct addrinfo *getServerI();
+		void	addClient(int fd);
+		void	processCommand(pollvec &fds, std::string line, int sock);
+		void	broadcast(pollvec &fds, std::string message);
+		long	getclientbyNick(const std::string &nick);
 
 
 
