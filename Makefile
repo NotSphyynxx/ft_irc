@@ -12,9 +12,11 @@ SRC = main.cpp \
 	$(SERVER_DIR)/Client.cpp \
 	$(SERVER_DIR)/parsing.cpp \
 	$(SERVER_DIR)/Commands.cpp\
-	$(SERVER_DIR)/GettersSetters.cpp
+	$(SERVER_DIR)/GettersSetters.cpp \
+	$(SERVER_DIR)/Channel.cpp
 
-HEAD = server/Server.hpp server/Client.hpp
+
+HEAD = server/Server.hpp server/Client.hpp server/Channel.hpp
 
 OBJ = $(SRC:.cpp=.o)
 

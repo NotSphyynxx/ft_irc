@@ -60,3 +60,16 @@ void Server::setServerIp(std::string ip)
 /******************************************************/
 
 
+Channel* Server::getChannel(std::string name) {
+    std::map<std::string, Channel>::iterator it = _channels.find(name);
+    if (it != _channels.end())
+        return &(it->second);
+    return NULL;
+}
+
+void Server::createChannel(std::string name, Client &cl) {
+    // Create the channel and insert it into the map
+    _channels.insert(std::make_pair(name, Channel(name)));
+    // Add the creator to the channel
+    _channels[name].addMember(&cl);
+}

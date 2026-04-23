@@ -25,6 +25,7 @@
 #include <sstream>
 #include <cstdlib>
 
+#include "Channel.hpp"
 //#include <Client.hpp>
 
 
@@ -41,6 +42,7 @@ class Client;
 typedef std::map <int , Client> cmaps;
 typedef std::vector <struct pollfd> pollvec;
 
+
 class Server
 {
    
@@ -51,6 +53,7 @@ class Server
         Server(const Server &other);
         Server();
         cmaps _client;
+        std::map<std::string, Channel> _channels;
         pollvec sockarrayy;
         struct addrinfo *serverI;
         std::string serverIp;
@@ -81,7 +84,8 @@ class Server
         void addClient(int fd);
         void processCommand(pollvec &fds, std::string line, int sock);
         void broadcast(pollvec &fds, std::string message);
-
+        Channel* getChannel(std::string name);
+        void createChannel(std::string name, Client &cl);
     
 
 };
