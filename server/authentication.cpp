@@ -35,8 +35,9 @@ bool Client::pass(std::string &pass, Server &sv)
 	{
 		if (pass.empty())
 			return (outbuffer+=ERR_NEEDMOREPARAMS(SERVER_NAME, "PASS"), false);
-		this->getoutbuffer() += ERR_PASSWDMISMATCH(SERVER_NAME);
-		sv.closeSocket(sv.getpollstruct(), getsock());
+		outbuffer += ERR_PASSWDMISMATCH(SERVER_NAME);
+		timeOut = true;
+		//sv.closeSocket(sv.getpollstruct(), getsock());
 	}
 	return false;
 }
@@ -221,7 +222,9 @@ int Client::Authentication(Server &sv)
 		}
 		else if (cmd == "QUIT")
 		{
-			sv.closeSocket(sv.getpollstruct(), this->getsock());
+			//sv.closeSocket(sv.getpollstruct(), this->getsock());
+			outbuffer += ERR_QUIT(myIp, extracted.substr(cmd.size()));
+			timeOut = true;
 		}
 		else
 			return (copy.erase(0 , pos + 2),0);
