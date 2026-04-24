@@ -42,6 +42,15 @@ std::string Server::getServerIp()
     return this->serverIp;
 }
 
+Client* Server::getClientByNickname(std::string nickname) {
+    for (cmaps::iterator it = _client.begin(); it != _client.end(); ++it) {
+        if (it->second.getnickname() == nickname)
+            return &(it->second);
+    }
+    return NULL;
+}
+
+
 // ─────────────── SETTERS ───────────────
 void Server::setServerIp(std::string ip)
 {

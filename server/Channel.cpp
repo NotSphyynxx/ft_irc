@@ -51,3 +51,37 @@ bool Channel::isOperator(Client* client){
     return false;
 }
 
+void Channel::inviteUser(std::string nickname){
+    _invited.push_back(nickname);
+}
+
+bool Channel::isInvited(std::string nickname){
+    for(size_t i = 0; i < _invited.size(); ++i){
+        if (_invited[i] == nickname)
+            return true;
+    }
+    return false;
+}
+
+bool Channel::isMember(Client* client){
+    for (size_t i = 0; i < _clients.size(); ++i){
+        if (_clients[i] == client)
+            return true;
+    }
+    return false;
+}
+
+void Channel::removeMember(Client* client){
+    for (std::vector<Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it){
+        if (*it == client){
+            _clients.erase(it);
+            break;
+        }
+    }
+    for (std::vector<Client*>::iterator it = _operators.begin(); it != _operators.end(); ++it){
+        if (*it == client) {
+            _operators.erase(it);
+            break;
+        }
+    }
+}
