@@ -1,161 +1,167 @@
 #include "Client.hpp"
 
-Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL)), pingsent(false)
+Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL)), pingsent(false) , timeOut(false)
 {
-    for (int i = 0; i < 4 ; i++)
-        setlevel(i , EMPTY);
+	for (int i = 0; i < 4 ; i++)
+		setlevel(i , EMPTY);
 }
 
 std::string  &Client::appand(const std::string &buf)
 {
-    std::string &mybuffer = getBuffer();
-    if (buf.empty())
-        return (mybuffer);
-    mybuffer += buf;
-    return mybuffer;
+	std::string &mybuffer = getBuffer();
+	if (buf.empty())
+		return (mybuffer);
+	mybuffer += buf;
+	return mybuffer;
 }
 
 /*                                            Getters & Setters                                                     */
+
 int Client::getsock()
 {
-    return this->mysocket;
+	return this->mysocket;
 }
 
 std::string &Client::getnickname()
 {
-    return this->nickname;
+	return this->nickname;
 }
 
 std::string &Client::getusername()
 {
-    return this->username;
+	return this->username;
 }
 
 std::string &Client::getrealname()
 {
-    return this->realname;
+	return this->realname;
 }
 
 std::string &Client::getBuffer()
 {
-    return this->buffer;
+	return this->buffer;
 }
 
 void Client::setnickname(std::string s)
 {
-    std::string clean;
+	std::string clean;
 
-    for (size_t i = 0; i < s.size(); i++)
-    {
-        if (s[i] != '\r' && s[i] != '\n')
-            clean += s[i];
-    }
-    this->nickname = clean;
-    std::string endmsg = "you're nickname is " + getnickname() + "\r\n";
-    outbuffer += endmsg;
+	for (size_t i = 0; i < s.size(); i++)
+	{
+		if (s[i] != '\r' && s[i] != '\n')
+			clean += s[i];
+	}
+	this->nickname = clean;
+	std::string endmsg = "you're nickname is " + getnickname() + "\r\n";
+	outbuffer += endmsg;
 }
 
 void Client::setusername(std::string s)
 {
-    std::string clean;
+	std::string clean;
 
-    for (size_t i = 0; i < s.size(); i++)
-    {
-        if (s[i] != '\r' && s[i] != '\n')
-            clean += s[i];
-    }
-    this->username = clean;
-    std::string endmsg = "you're username is " + getusername() + "\r\n";
-    outbuffer += endmsg;
+	for (size_t i = 0; i < s.size(); i++)
+	{
+		if (s[i] != '\r' && s[i] != '\n')
+			clean += s[i];
+	}
+	this->username = clean;
+	std::string endmsg = "you're username is " + getusername() + "\r\n";
+	outbuffer += endmsg;
 }
 
 void Client::setrealname(std::string s)
 {
-    std::string clean;
+	std::string clean;
 
-    for (size_t i = 0; i < s.size(); i++)
-    {
-        if (s[i] != '\r' && s[i] != '\n')
-            clean += s[i];
-    }
-    this->realname = clean;
-    std::string endmsg = "you're realname is " + realname + "\r\n";
-    outbuffer += endmsg;
+	for (size_t i = 0; i < s.size(); i++)
+	{
+		if (s[i] != '\r' && s[i] != '\n')
+			clean += s[i];
+	}
+	this->realname = clean;
+	std::string endmsg = "you're realname is " + realname + "\r\n";
+	outbuffer += endmsg;
 }
 
 void Client::setBuffer(std::string buf)
 {
-    this->buffer += buf;
+	this->buffer += buf;
 }
 
 
 Level Client::getlevel(unsigned int  index)
 {
-    return this->rank[index];
+	return this->rank[index];
 }
 
 void Client::setlevel(unsigned int index, Level value)
 {
-    this->rank[index] = value;
+	this->rank[index] = value;
 }
 
 std::string &Client::getIp()
 {
-    return this->myIp;
+	return this->myIp;
 }
 
 void Client::setIp(std::string ip)
 {
-    this->myIp = ip;
+	this->myIp = ip;
 }
 
 time_t &Client::getconnecttime()
 {
-    return this->connectTime;
+	return this->connectTime;
 }
 
 void Client::setconnecttinme(time_t tm)
 {
-    this->connectTime = tm;
+	this->connectTime = tm;
 }
 
 time_t &Client::getLastActivity()
 {
-    return this->lastActivity;
+	return this->lastActivity;
 }
 
 void Client::setLastActivity(time_t tm)
 {
-    this->lastActivity = tm;
+	this->lastActivity = tm;
 }
 
 std::string &Client::getoutbuffer()
 {
-    return this->outbuffer;
+	return this->outbuffer;
 }
 
 void Client::setoutbuffer(std::string outbuff) // 0 for erase
 {
-     this->outbuffer = outbuff;
+	 this->outbuffer = outbuff;
 }
 
 bool Client::pingissent()
 {
-    return this->pingsent;
+	return this->pingsent;
 }
 
 void Client::setping(bool value)
 {
-    this->pingsent = value;
+	this->pingsent = value;
 }
 
 time_t &Client::getwhenpingsent()
 {
-    return whenpingsent;
+	return whenpingsent;
 }
 
 // for broadcasting
 std::string Client::getPrefix() {
-    // This creates the standard IRC identity mask
-    return nickname + "!" + username + "@" + myIp;
+	// This creates the standard IRC identity mask
+	return nickname + "!" + username + "@" + myIp;
+}
+
+bool &Client::getTimeout()
+{
+	return this->timeOut;
 }

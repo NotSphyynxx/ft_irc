@@ -1,11 +1,11 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include <sys/socket.h> 
-#include <netinet/in.h> 
-#include <arpa/inet.h>  
-#include <unistd.h>     
-#include <fcntl.h>      
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <sys/types.h>
 #include <netdb.h>
@@ -25,7 +25,7 @@
 
 #define PORT 2020
 #define REQUEST 10
-#define IPV4LEN 16 
+#define IPV4LEN 16
 #define BUFFER 1024
 #define SERVER_NAME "ft_irc.2004.ma"
 #define MAX_CHANNEL 10
@@ -39,6 +39,19 @@
 #define ERR_NICKINUSE(s, n) (":" + std::string(s) + " 433 * " + std::string(n) + " :Nickname is already in use\r\n")
 #define ERR_ALREADYREG(s) (":" + std::string(s) + " 462 * :Unauthorized command (already registered)\r\n")
 #define ERR_NEEDMOREPARAMS(s, c) (":" + std::string(s) + " 461 * " + std::string(c) + " :Not enough parameters\r\n")
+// When they send PING without a token
+#define ERR_NOORIGIN(s) (":" + std::string(s) + " 409 * :No origin specified\r\n")
+// The successful PONG reply
+#define RPL_PONG(s, token) (":" + std::string(s) + " PONG " + std::string(s) + " :" + std::string(token) + "\r\n")
+
+// This is what you send when the user has been quiet for too long.
+#define CMD_PING(server) ("PING :" + std::string(server) + "\r\n")
+//The Ping Timeout ERROR Macro
+#define ERR_PINGTIMEOUT(ip) ("ERROR :Closing Link: " + std::string(ip) + " (Ping timeout)\r\n")
+
+#define ERR_QUIT(ip, reason) ("ERROR :Closing Link: " + std::string(ip) + " (Quit: " + std::string(reason) + ")\r\n")
+//QUIT but for broadcasting
+#define CMD_QUIT(prefix, reason) (":" + std::string(prefix) + " QUIT :Quit: " + std::string(reason) + "\r\n")
 
 class Client;
 typedef std::map <int , Client> cmaps;
@@ -46,6 +59,7 @@ typedef std::vector <struct pollfd> pollvec;
 
 class Server
 {
+
     private :
         int         sockfd;
         std::string password;
@@ -78,11 +92,13 @@ class Server
         void closeSocket(pollvec &fds, int sock);
         int checkTimeout(pollvec &fds);
         int checkPollout(pollvec &fds);
+		int		checkClients(pollvec &sockarray);
         struct addrinfo *getServerI();
         void addClient(int fd);
         void processCommand(pollvec &fds, std::string line, int sock);
         void broadcast(pollvec &fds, std::string message);
-        
+		void	processBuffer(pollvec &fds, Client &cl);
+
         // --- Player 2 Channel Methods ---
         Channel* getChannel(std::string name);
         void createChannel(std::string name, Client &cl);
@@ -91,6 +107,8 @@ class Server
 
         // --- Player 1 Methods ---
         long getclientbyNick(const std::string &nick);
+
+
 
 };
 
