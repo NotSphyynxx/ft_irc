@@ -57,6 +57,17 @@ void Server::setServerIp(std::string ip)
     this->serverIp = ip;
 }
 
+// ─────────────── Quit ───────────────
+
+void Server::removeClientFromAllChannels(Client* cl, std::string quitMsg){
+    for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it){
+        if (it->second.isMember(cl)){
+            std::string msg = ":" + cl->getnickname() + "!" + cl->getusername() + "@" + cl->getIp() + " QUIT :" + quitMsg + "\r\n";
+            it->second.broadcastMessage(msg, cl);
+            it->second.removeMember(cl);
+        }
+    }
+}
 
 
 

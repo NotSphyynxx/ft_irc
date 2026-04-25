@@ -86,10 +86,12 @@ class Server
         // --- Player 2 Channel Methods ---
         Channel* getChannel(std::string name);
         void createChannel(std::string name, Client &cl);
-        Client* getClientByNickname(std::string nickname); 
+        Client* getClientByNickname(std::string nickname);
+        void removeClientFromAllChannels(Client* cl, std::string quitMsg);
 
         // --- Player 1 Methods ---
         long getclientbyNick(const std::string &nick);
+
 };
 
 int     myport(char *port);

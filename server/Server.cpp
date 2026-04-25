@@ -330,6 +330,10 @@ void Server::closeSocket(std::vector <struct pollfd> &fds, int sock)
 			break;
 		}
 	}
+	if (clientExists(sock)){
+		Client &cl = getClient(sock);
+		removeClientFromAllChannels(&cl, "Connection closed");
+	}
 	removeClient(sock);
 	close(sock);
 }

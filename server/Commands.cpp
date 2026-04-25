@@ -177,7 +177,18 @@ void Server::processCommand(pollvec &fds, std::string line, int sock)
             // 8. Physically delete them from the channel's memory
             chan->removeMember(targetClient);
         }
-    } 
+        else if (cmd.find("QUIT") == 0)
+        {
+            std::string reason = "Client Quit";
+            size_t colonPos = cmd.find(':');
+            if (colonPos != std::string::npos){
+                reason = cmd.substr(colonPos + 1);
+            }
+            removeClientFromAllChannels(&cl, reason);
+            closeSocket(fds, sock);
+            return ;
+        }
+    }
     catch (const std::out_of_range& e)
     {
        (void)e;
