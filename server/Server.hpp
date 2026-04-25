@@ -39,8 +39,11 @@
 #define ERR_NICKINUSE(s, n) (":" + std::string(s) + " 433 * " + std::string(n) + " :Nickname is already in use\r\n")
 #define ERR_ALREADYREG(s) (":" + std::string(s) + " 462 * :Unauthorized command (already registered)\r\n")
 #define ERR_NEEDMOREPARAMS(s, c) (":" + std::string(s) + " 461 * " + std::string(c) + " :Not enough parameters\r\n")
+
 // When they send PING without a token
+
 #define ERR_NOORIGIN(s) (":" + std::string(s) + " 409 * :No origin specified\r\n")
+
 // The successful PONG reply
 #define RPL_PONG(s, token) (":" + std::string(s) + " PONG " + std::string(s) + " :" + std::string(token) + "\r\n")
 
@@ -53,6 +56,24 @@
 //QUIT but for broadcasting
 #define CMD_QUIT(prefix, reason) (":" + std::string(prefix) + " QUIT :Quit: " + std::string(reason) + "\r\n")
 
+//PRIVMSG
+#define CMD_PRIVMSG(prefix, target, text) (":" + std::string(prefix) + " PRIVMSG " + std::string(target) + " :" + std::string(text) + "\r\n")
+
+//(They tried to DM a user who is offline, or a channel that hasn't been created).
+#define ERR_NOSUCHNICK(server, nickname, target) (":" + std::string(server) + " 401 " + std::string(nickname) + " " + std::string(target) + " :No such nick/channel\r\n")
+
+//(They tried to send a message to #1337, but they haven't JOINed #1337 yet).
+#define ERR_CANNOTSENDTOCHAN(server, nickname, channel) (":" + std::string(server) + " 404 " + std::string(nickname) + " " + std::string(channel) + " :Cannot send to channel\r\n")
+
+//(They typed PRIVMSG but forgot to put a target name).
+#define ERR_NORECIPIENT(server, nickname, command) (":" + std::string(server) + " 411 " + std::string(nickname) + " :No recipient given (" + std::string(command) + ")\r\n")
+
+//(They typed PRIVMSG #1337 but forgot to actually type a message)
+#define ERR_NOTEXTTOSEND(server, nickname) (":" + std::string(server) + " 412 " + std::string(nickname) + " :No text to send\r\n")
+
+
+
+
 class Client;
 typedef std::map <int , Client> cmaps;
 typedef std::vector <struct pollfd> pollvec;
@@ -60,53 +81,55 @@ typedef std::vector <struct pollfd> pollvec;
 class Server
 {
 
-    private :
-        int         sockfd;
-        std::string password;
-        Server &operator=(const Server  &other);
-        Server(const Server &other);
-        Server();
-        cmaps _client;
-        std::map<std::string, Channel> _channels; // Player 2 map
-        pollvec sockarrayy;
-        struct addrinfo *serverI;
-        std::string serverIp;
+	private :
+		int         sockfd;
+		std::string password;
+		Server &operator=(const Server  &other);
+		Server(const Server &other);
+		Server();
+		cmaps _client;
+		std::map<std::string, Channel> _channels; // Player 2 map
+		pollvec sockarrayy;
+		struct addrinfo *serverI;
+		std::string serverIp;
 
-    public :
-        Server(char *port, char *password);
-        ~Server();
-        int run();
-        int getsocket();
-        std::string getServerIp();
-        void setServerIp(std::string ip);
-        int NewConnection(std::vector <struct pollfd> &fds, int sock);
-        int RecieveMessage(std::vector <struct pollfd> &fds, int sock);
-        int sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock);
-        std::string getpass();
-        void removeClient(int fd);
-        bool clientExists(int fd) const;
-        Client& getClient(int fd);
-        const cmaps & getcmaps();
-        pollvec &getpollstruct();
-        bool sameName(std::string &nickname);
-        void closeSocket(pollvec &fds, int sock);
-        int checkTimeout(pollvec &fds);
-        int checkPollout(pollvec &fds);
+	public :
+		Server(char *port, char *password);
+		~Server();
+		int run();
+		int getsocket();
+		std::string getServerIp();
+		void setServerIp(std::string ip);
+		int NewConnection(std::vector <struct pollfd> &fds, int sock);
+		int RecieveMessage(std::vector <struct pollfd> &fds, int sock);
+		int sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int sock);
+		std::string getpass();
+		void removeClient(int fd);
+		bool clientExists(int fd) const;
+		Client& getClient(int fd);
+		const cmaps & getcmaps();
+		pollvec &getpollstruct();
+		bool sameName(std::string &nickname);
+		void	closeSocket(pollvec &fds, int sock);
+		int		checkTimeout(pollvec &fds);
+		int		checkPollout(pollvec &fds);
 		int		checkClients(pollvec &sockarray);
-        struct addrinfo *getServerI();
-        void addClient(int fd);
-        void processCommand(pollvec &fds, std::string line, int sock);
-        void broadcast(pollvec &fds, std::string message);
+		struct addrinfo *getServerI();
+		void	addClient(int fd);
+		void	processCommand(pollvec &fds, std::string line, int sock);
+		void	broadcast(pollvec &fds, std::string message);
 		void	processBuffer(pollvec &fds, Client &cl);
+		bool	Privmsg(Client &cl, std::string allCmd);
 
-        // --- Player 2 Channel Methods ---
-        Channel* getChannel(std::string name);
-        void createChannel(std::string name, Client &cl);
-        Client* getClientByNickname(std::string nickname);
-        void removeClientFromAllChannels(Client* cl, std::string quitMsg);
+		// --- Player 2 Channel Methods ---
+		Channel* getChannel(std::string name);
+		void createChannel(std::string name, Client &cl);
+		Client* getClientByNickname(std::string nickname);
+		void removeClientFromAllChannels(Client* cl, std::string quitMsg);
 
-        // --- Player 1 Methods ---
-        long getclientbyNick(const std::string &nick);
+		// --- Player 1 Methods ---
+		long getclientbyNick(const std::string &nick);
+		Client *getClientByUser(std::string &username);
 
 
 

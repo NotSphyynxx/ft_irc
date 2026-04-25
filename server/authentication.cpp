@@ -184,14 +184,6 @@ int Client::Authentication(Server &sv)
 		{
 			if (!this->pass(value, sv))
 				return (copy.erase(0 , pos + 2), 0);
-			// if (getlevel(0) == hasPASS && ((time(NULL)) - getconnecttime() > 40))
-			// {
-			//     std::cout << "Timeout: Closing unregistered client " << getsock() << std::endl;
-			//     this->getoutbuffer() += "Timeout : Time of authentication is exceeded\r\n";
-			//     sv.closeSocket(sv.getpollstruct(), getsock());
-			//     return (copy.erase(0 , pos + 2),0);
-
-			// }
 		}
 		else if (cmd == "NICK")
 		{

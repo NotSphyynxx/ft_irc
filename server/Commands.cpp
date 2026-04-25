@@ -4,227 +4,274 @@
 
 void Server::processBuffer(pollvec &fds, Client &cl)
 {
-    std::string &buffer = cl.getBuffer();
-    size_t pos;
+	std::string &buffer = cl.getBuffer();
+	size_t pos;
 
-    // We search for '\n' instead of "\r\n" to fully support Netcat!
-    while ((pos = buffer.find('\n')) != std::string::npos)
-    {
-        // A. The Cleaver: Cut out the command up to the newline
-        std::string singleCommand = buffer.substr(0, pos);
+	// We search for '\n' instead of "\r\n" to fully support Netcat!
+	while ((pos = buffer.find('\n')) != std::string::npos)
+	{
+		// A. The Cleaver: Cut out the command up to the newline
+		std::string singleCommand = buffer.substr(0, pos);
 
-        // B. THE ERASER: Remove the command AND the '\n' byte from the tank
-        buffer.erase(0, pos + 1);
+		// B. THE ERASER: Remove the command AND the '\n' byte from the tank
+		buffer.erase(0, pos + 1);
 
-        // C. The Netcat Fix: If the command came from HexChat, it will have
-        // a '\r' stuck at the very end. We trim it off cleanly!
-        if (!singleCommand.empty() && singleCommand[singleCommand.length() - 1] == '\r')
-                singleCommand.erase(singleCommand.length() - 1);
-                
-        // D. Safety Check: Ignore empty lines (e.g., if they just spammed Enter)
-        if (!singleCommand.empty())
-        {
-            processCommand(fds, singleCommand, cl.getsock());
-        }
-    }
+		// C. The Netcat Fix: If the command came from HexChat, it will have
+		// a '\r' stuck at the very end. We trim it off cleanly!
+		if (!singleCommand.empty() && singleCommand[singleCommand.length() - 1] == '\r')
+				singleCommand.erase(singleCommand.length() - 1);
+
+		// D. Safety Check: Ignore empty lines (e.g., if they just spammed Enter)
+		if (!singleCommand.empty())
+		{
+			processCommand(fds, singleCommand, cl.getsock());
+		}
+	}
 }
 
-bool removeCRLF(std::string &str)// true there is crlf
+
+bool	Server::Privmsg(Client &cl , std::string allCmd)
 {
-    std::string cleaned;
-    bool flag = false;
-    size_t i = 0;
-    if (str.find("\r\n") == std::string::npos)
-        return flag;
+	std::string cmd , target , message;
+	std::stringstream ss(allCmd);
+	ss >> cmd >> target;
 
-    for (; i < str.size(); ++i)
-    {
-        if (str[i] != '\r' && str[i] != '\n')
-            cleaned += str[i];
-        if (str[i] == '\r' || str[i] == '\n')
-            flag = true;
-    }
+	if (target.empty())
+	{
+		cl.getoutbuffer() += ERR_NORECIPIENT(SERVER_NAME, cl.getnickname(), "PRIVMSG");
+		return false;
+	}
+	std::getline(ss, message);
+	size_t pos = message.find(":");
+	if (pos != std::string::npos)
+		message = message.substr(pos + 1);
+	else
+		{
+			size_t leading_spaces = message.find_first_not_of(" \t");
+			if (leading_spaces != std::string::npos)
+			{
+				size_t remaining_spaces = message.find_last_not_of(" \t");
+				message = message.substr(leading_spaces, remaining_spaces - leading_spaces + 1);
+			}
+			else
+				message = "";
+		}
+	if (message.empty())
+	{
+		cl.getoutbuffer() += ERR_NOTEXTTOSEND(SERVER_NAME, cl.getnickname());
+		return false;
+	}
+// For Channel
+	if (target[0] == '&' || target[0] == '#')
+	{
+		Channel *chn = getChannel(target);
+		if (!chn)
+		{
+			cl.getoutbuffer() += ERR_NOSUCHNICK(SERVER_NAME, cl.getnickname() , target);
+			return false;
+		}
+		if (chn->isMember(&cl) == false)
+		{
+			cl.getoutbuffer() += ERR_CANNOTSENDTOCHAN(SERVER_NAME, cl.getnickname() , target);
+			return false;
+		}
+		chn->broadcastMessage(CMD_PRIVMSG(cl.getPrefix(), target, message), &cl);
+		return true;
+	}
+// For Client
+	Client *c_target = getClientByNickname(target);
 
-    str = cleaned;
-    return flag;
+	if (c_target == NULL)
+	{
+		cl.getoutbuffer() += ERR_NOSUCHNICK(SERVER_NAME, cl.getnickname() , target);
+		return false;
+	}
+	c_target->getoutbuffer() += CMD_PRIVMSG(cl.getPrefix(), target, message);
+	return true;
 }
+
 
 void Server::processCommand(pollvec &fds, std::string line, int sock)
 {
-    try
-    {
-        Client &cl = getClient(sock);
-        if (cl.getlevel(3) != REGISTRED)
-            return ;
-            
-        std::string allCmd, cmd, token;
-        allCmd = line;
+	try
+	{
+		Client &cl = getClient(sock);
+		if (cl.getlevel(3) != REGISTRED)
+			return ;
 
-        std::stringstream stream_me(allCmd);
-        stream_me >> cmd >> token;
+		std::string allCmd, cmd, token;
+		allCmd = line;
 
-        if (cmd == "PONG")
-        {
-            cl.setLastActivity(time(NULL));
-            cl.setping(false);
-        }
-        else if (cmd == "PING")
-        {
-            if (token.empty())
-            {
-                cl.getoutbuffer() += ERR_NOORIGIN(SERVER_NAME);
-                return;
-            }
-            if (token[0] == ':')
-                token.erase(0, 1);
-            cl.getoutbuffer() += RPL_PONG(SERVER_NAME, token);
-        }
-        // --- HYBRID QUIT COMMAND ---
-        else if (cmd == "QUIT")
-        {
-            // 1. Player 2: Extract the reason
-            std::string reason = "Client Quit";
-            size_t colonPos = allCmd.find(':');
-            if (colonPos != std::string::npos) {
-                reason = allCmd.substr(colonPos + 1);
-            }
-            
-            // 2. Player 2: Scrub them from all channels immediately
-            removeClientFromAllChannels(&cl, reason);
+		std::stringstream stream_me(allCmd);
+		stream_me >> cmd >> token;
 
-            // 3. Player 1: Tell the engine to drop them safely
-            cl.getoutbuffer() += ERR_QUIT(cl.getIp(), allCmd.substr(cmd.size()));
-            cl.getTimeout() = true; 
-        }
-        // --- JOIN COMMAND ---
-        else if (cmd == "JOIN")
-        {
-            std::stringstream ss(allCmd);
-            std::string instruction, channelName;
+		if (cmd == "PONG")
+		{
+			cl.setLastActivity(time(NULL));
+			cl.setping(false);
+		}
+		else if (cmd == "PING")
+		{
+			if (token.empty())
+			{
+				cl.getoutbuffer() += ERR_NOORIGIN(SERVER_NAME);
+				return;
+			}
+			if (token[0] == ':')
+				token.erase(0, 1);
+			cl.getoutbuffer() += RPL_PONG(SERVER_NAME, token);
+		}
+		else if (cmd == "PRIVMSG")
+		{
+			if (!Privmsg(cl, allCmd))
+				return ;
+		}
+		// --- HYBRID QUIT COMMAND ---
+		else if (cmd == "QUIT")
+		{
+			// 1. Player 2: Extract the reason
+			std::string reason = "Client Quit";
+			size_t colonPos = allCmd.find(':');
+			if (colonPos != std::string::npos) {
+				reason = allCmd.substr(colonPos + 1);
+			}
 
-            ss >> instruction >> channelName;
+			// 2. Player 2: Scrub them from all channels immediately
+			removeClientFromAllChannels(&cl, reason);
 
-            if (channelName.empty()) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 461 JOIN :Not enough parameters\r\n";
-                return;
-            }
+			// 3. Player 1: Tell the engine to drop them safely
+			cl.getoutbuffer() += ERR_QUIT(cl.getIp(), allCmd.substr(cmd.size()));
+			cl.getTimeout() = true;
+		}
+		// --- JOIN COMMAND ---
+		else if (cmd == "JOIN")
+		{
+			std::stringstream ss(allCmd);
+			std::string instruction, channelName;
 
-            // Slice 1: Server Memory
-            Channel* chan = getChannel(channelName);
-            if (chan == NULL) {
-                createChannel(channelName, cl);
-                chan = getChannel(channelName);
-                chan->addOperator(&cl); // Grant the Crown
-            } else {
-                chan->addMember(&cl);
-            }
+			ss >> instruction >> channelName;
 
-            // Slice 2: The Protocol Handshake
-            std::string nick = cl.getnickname();
-            std::string user = cl.getusername();
-            std::string host = cl.getIp();
+			if (channelName.empty()) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 461 JOIN :Not enough parameters\r\n";
+				return;
+			}
 
-            std::string joinMsg = ":" + nick + "!" + user + "@" + host + " JOIN " + channelName + "\r\n";
-            chan->broadcastMessage(joinMsg);
+			// Slice 1: Server Memory
+			Channel* chan = getChannel(channelName);
+			if (chan == NULL) {
+				createChannel(channelName, cl);
+				chan = getChannel(channelName);
+				chan->addOperator(&cl); // Grant the Crown
+			} else {
+				chan->addMember(&cl);
+			}
 
-            std::string topicMsg = ":ft_irc.2004.ma 332 " + nick + " " + channelName + " :No topic set\r\n";
-            cl.getoutbuffer() += topicMsg;
+			// Slice 2: The Protocol Handshake
+			std::string nick = cl.getnickname();
+			std::string user = cl.getusername();
+			std::string host = cl.getIp();
 
-            std::string nameList = chan->getMemberListAsString();
-            std::string namesMsg = ":ft_irc.2004.ma 353 " + nick + " = " + channelName + " :" + nameList + "\r\n";
-            cl.getoutbuffer() += namesMsg;
+			std::string joinMsg = ":" + nick + "!" + user + "@" + host + " JOIN " + channelName + "\r\n";
+			chan->broadcastMessage(joinMsg);
 
-            std::string endNamesMsg = ":ft_irc.2004.ma 366 " + nick + " " + channelName + " :End of /NAMES list.\r\n";
-            cl.getoutbuffer() += endNamesMsg;
-        }
-        // --- INVITE COMMAND ---
-        else if (cmd == "INVITE")
-        {
-            std::stringstream ss(allCmd);
-            std::string instruction, targetNick, channelName;
+			std::string topicMsg = ":ft_irc.2004.ma 332 " + nick + " " + channelName + " :No topic set\r\n";
+			cl.getoutbuffer() += topicMsg;
 
-            ss >> instruction >> targetNick >> channelName;
+			std::string nameList = chan->getMemberListAsString();
+			std::string namesMsg = ":ft_irc.2004.ma 353 " + nick + " = " + channelName + " :" + nameList + "\r\n";
+			cl.getoutbuffer() += namesMsg;
 
-            if (targetNick.empty() || channelName.empty()) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " INVITE :Not enough parameters\r\n";
-                return;
-            }
+			std::string endNamesMsg = ":ft_irc.2004.ma 366 " + nick + " " + channelName + " :End of /NAMES list.\r\n";
+			cl.getoutbuffer() += endNamesMsg;
+		}
+		// --- INVITE COMMAND ---
+		else if (cmd == "INVITE")
+		{
+			std::stringstream ss(allCmd);
+			std::string instruction, targetNick, channelName;
 
-            Channel* chan = getChannel(channelName);
-            if (chan == NULL) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 403 " + cl.getnickname() + " " + channelName + " :No such channel\r\n";
-                return;
-            }
+			ss >> instruction >> targetNick >> channelName;
 
-            if (!chan->isOperator(&cl)) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 482 " + cl.getnickname() + " " + channelName + " :You're not channel operator\r\n";
-                return;
-            }
+			if (targetNick.empty() || channelName.empty()) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " INVITE :Not enough parameters\r\n";
+				return;
+			}
 
-            Client* targetClient = getClientByNickname(targetNick);
-            if (targetClient == NULL) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 401 " + cl.getnickname() + " " + targetNick + " :No such nick/channel\r\n";
-                return;
-            }
+			Channel* chan = getChannel(channelName);
+			if (chan == NULL) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 403 " + cl.getnickname() + " " + channelName + " :No such channel\r\n";
+				return;
+			}
 
-            chan->inviteUser(targetNick);
+			if (!chan->isOperator(&cl)) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 482 " + cl.getnickname() + " " + channelName + " :You're not channel operator\r\n";
+				return;
+			}
 
-            cl.getoutbuffer() += ":ft_irc.2004.ma 341 " + cl.getnickname() + " " + targetNick + " " + channelName + "\r\n";
+			Client* targetClient = getClientByNickname(targetNick);
+			if (targetClient == NULL) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 401 " + cl.getnickname() + " " + targetNick + " :No such nick/channel\r\n";
+				return;
+			}
 
-            std::string inviteMsg = ":" + cl.getnickname() + "!" + cl.getusername() + "@" + cl.getIp() + " INVITE " + targetNick + " :" + channelName + "\r\n";
-            targetClient->getoutbuffer() += inviteMsg;
-        }
-        // --- KICK COMMAND ---
-        else if (cmd == "KICK")
-        {
-            std::stringstream ss(allCmd);
-            std::string instruction, channelName, targetNick;
+			chan->inviteUser(targetNick);
 
-            ss >> instruction >> channelName >> targetNick;
+			cl.getoutbuffer() += ":ft_irc.2004.ma 341 " + cl.getnickname() + " " + targetNick + " " + channelName + "\r\n";
 
-            if (channelName.empty() || targetNick.empty()) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " KICK :Not enough parameters\r\n";
-                return;
-            }
+			std::string inviteMsg = ":" + cl.getnickname() + "!" + cl.getusername() + "@" + cl.getIp() + " INVITE " + targetNick + " :" + channelName + "\r\n";
+			targetClient->getoutbuffer() += inviteMsg;
+		}
+		// --- KICK COMMAND ---
+		else if (cmd == "KICK")
+		{
+			std::stringstream ss(allCmd);
+			std::string instruction, channelName, targetNick;
 
-            Channel* chan = getChannel(channelName);
+			ss >> instruction >> channelName >> targetNick;
 
-            if (chan == NULL) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 403 " + cl.getnickname() + " " + channelName + " :No such channel\r\n";
-                return;
-            }
+			if (channelName.empty() || targetNick.empty()) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " KICK :Not enough parameters\r\n";
+				return;
+			}
 
-            if (!chan->isMember(&cl)) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 442 " + cl.getnickname() + " " + channelName + " :You're not on that channel\r\n";
-                return;
-            }
+			Channel* chan = getChannel(channelName);
 
-            if (!chan->isOperator(&cl)) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 482 " + cl.getnickname() + " " + channelName + " :You're not channel operator\r\n";
-                return;
-            }
+			if (chan == NULL) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 403 " + cl.getnickname() + " " + channelName + " :No such channel\r\n";
+				return;
+			}
 
-            Client* targetClient = getClientByNickname(targetNick);
-            if (targetClient == NULL || !chan->isMember(targetClient)) {
-                cl.getoutbuffer() += ":ft_irc.2004.ma 441 " + cl.getnickname() + " " + targetNick + " " + channelName + " :They aren't on that channel\r\n";
-                return;
-            }
+			if (!chan->isMember(&cl)) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 442 " + cl.getnickname() + " " + channelName + " :You're not on that channel\r\n";
+				return;
+			}
 
-            std::string reason = "No reason given";
-            size_t colonPos = allCmd.find(':', allCmd.find(targetNick));
-            if (colonPos != std::string::npos) {
-                reason = allCmd.substr(colonPos + 1);
-            }
+			if (!chan->isOperator(&cl)) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 482 " + cl.getnickname() + " " + channelName + " :You're not channel operator\r\n";
+				return;
+			}
 
-            std::string kickMsg = ":" + cl.getnickname() + "!" + cl.getusername() + "@" + cl.getIp() + " KICK " + channelName + " " + targetNick + " :" + reason + "\r\n";
-            chan->broadcastMessage(kickMsg);
+			Client* targetClient = getClientByNickname(targetNick);
+			if (targetClient == NULL || !chan->isMember(targetClient)) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 441 " + cl.getnickname() + " " + targetNick + " " + channelName + " :They aren't on that channel\r\n";
+				return;
+			}
 
-            chan->removeMember(targetClient);
-        }
-    }
-    catch (const std::out_of_range& e)
-    {
-       (void)e;
-        std::cerr << "getClient() failed (at()) !" << std::endl;
-    }
+			std::string reason = "No reason given";
+			size_t colonPos = allCmd.find(':', allCmd.find(targetNick));
+			if (colonPos != std::string::npos) {
+				reason = allCmd.substr(colonPos + 1);
+			}
+
+			std::string kickMsg = ":" + cl.getnickname() + "!" + cl.getusername() + "@" + cl.getIp() + " KICK " + channelName + " " + targetNick + " :" + reason + "\r\n";
+			chan->broadcastMessage(kickMsg);
+
+			chan->removeMember(targetClient);
+		}
+	}
+	catch (const std::out_of_range& e)
+	{
+	   (void)e;
+		std::cerr << "getClient() failed (at()) !" << std::endl;
+	}
 }
