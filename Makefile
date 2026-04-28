@@ -41,9 +41,9 @@ $(NAME): $(OBJ)
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 
 clean:
-	rm -f $(OBJ)
+	rm -f $(OBJ) $(B_OBJ)
 
 fclean: clean
-	rm -f $(NAME)
+	rm -f $(NAME) $(BOT_NAME)
 
 re: fclean all
