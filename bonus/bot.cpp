@@ -24,7 +24,8 @@
 int main(int argc , char **argv)
 {
 	if (argc != 4)
-		return ;
+		return 1;
+	srand(time(0));
 	myport(argv[2]);
 	char *port = argv[2];
 	struct addrinfo		*botaddress;
@@ -40,16 +41,11 @@ int main(int argc , char **argv)
 	{
 		throw std::runtime_error("getaddrinfo failed !");
 	}
-	for (tmp = botaddress; tmp != NULL ;tmp =  tmp->next)
+	for (tmp = botaddress; tmp != NULL ; tmp = tmp->ai_next)
 	{
 		if ((sockBot = socket(tmp->ai_family, tmp->ai_socktype , tmp->ai_protocol)) != -1)
 		{
 			freeaddrinfo(botaddress);
-			continue;
-		}
-		if (fcntl(sockBot, F_SETFL, O_NONBLOCK) == -1)
-		{
-			close(sockBot);
 			continue;
 		}
 		int truee = 1;
@@ -73,10 +69,14 @@ int main(int argc , char **argv)
 	std::string	fullBuff;
 	size_t byte_recv ;
 	size_t byte_sent;
+	std::string Jokes[5] = {"I have a great joke about UDP, but I'm not sure you'll get it.",
+							"Schrödinger’s cat walks into a bar. And doesn't.",
+							"A C++ developer, a Java developer, and a Python developer walk into a cafe. The Java dev waits 5 minutes for the garbage collector to clear a table. The Python dev imports a table. The C++ dev builds a table from scratch, eats, and then accidentally destroys the entire cafe trying to free the memory.","Why did the database administrator leave his wife? She had one-to-many relationships." , "Why do programmers prefer dark mode? Because light attracts bugs."
+							};
 
 	while (1)
 	{
-		byte_recv = recv(sockBot, buff, sizeof(buff) - 1);
+		byte_recv = recv(sockBot, buff, sizeof(buff) - 1, 0);
 		if (byte_recv == -1)
 		{
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
@@ -85,34 +85,67 @@ int main(int argc , char **argv)
 			close(sockBot);
 			return -1; // check for -1 later
 		}
-		buff[byte_recv] = '\0';
+		if (byte_recv > 0)
+			buff[byte_recv] = '\0';
 		fullBuff += buff;
-		if ((size_t pos = fullBuff.find("\r\n")) != std::string::npos)
+		size_t pos;
+		while ((pos = fullBuff.find("\r\n")) != std::string::npos)
 		{
-			std::string cmd , token;
-			std::string line  = fullBuff.substr(0, pos);
+			std::string prefix, cmd, target, what;
+			std::string line = fullBuff.substr(0, pos);
 			std::stringstream ss(line);
-			ss >> cmd >> token;
-			if (cmd == "PING" && token == ":" + std::string(SERVER_NAME))
+			ss >> prefix >> cmd >> target;
+			if (prefix == "PING")
 			{
-				std::string pong = RPL_PONG(SERVER_NAME , token);
-				byte_sent = send(sockBot, pong , pong.size());
-				if (byte_sent == -1)
+				std::string pong = RPL_PONG(SERVER_NAME , cmd);
+				while (!pong.empty())
 				{
-					if (errno == EWOULDBLOCK || errno == EAGAIN) // in a blocking socket the program would wait but since we set it to no blocking the func just return
-					continue; // Just try again next time POLLOUT is ready
-					throw std::runtime_error("send() failed !");
+					byte_sent = send(sockBot, pong.c_str() , pong.size(), 0);
+					if (byte_sent == -1)
+					{
+						throw std::runtime_error("send() failed !");
+					}
+					pong.erase(0, byte_sent);
 				}
-				
 			}
-
+			else if (cmd == "PRIVMSG")//token here is the cmd
+			{
+				size_t mark = prefix.find("!");
+				std::string sender = prefix.substr(1, mark - 1);
+				if (what == ":!roll")
+				{
+					long guess = rand() % 101;
+					std::stringstream tostr;
+					tostr << guess;
+					std::string ReplyTarget = (target[0] == '#' || target[0] == '&') ? target : sender;
+					std::string reply = CMD_PRIVMSG(prefix, ReplyTarget, tostr.str());
+					while (!reply.empty())
+					{
+						byte_sent = send(sockBot, reply.c_str(), reply.size(), 0);
+						if (byte_sent == -1)
+						{
+							throw std::runtime_error("send() failed !");
+						}
+						reply.erase(0, byte_sent);
+					}
+				}
+				if (what == ":!joke")
+				{
+					long random = rand() % 5;
+					std::string ReplyTarget = (target[0] == '#' || target[0] == '&') ? target : sender;
+					std::string reply = CMD_PRIVMSG(prefix, ReplyTarget, Jokes[random]);
+					while (!reply.empty())
+					{
+						byte_sent = send(sockBot, reply.c_str(), reply.size(), 0);
+						if (byte_sent == -1)
+						{
+							throw std::runtime_error("send() failed !");
+						}
+						reply.erase(0, byte_sent);
+					}
+				}
+			}
+			fullBuff.erase(0, pos + 2);
 		}
-
-
-
-
 	}
-
-
-
 }

@@ -40,6 +40,8 @@
 #define ERR_ALREADYREG(s) (":" + std::string(s) + " 462 * :Unauthorized command (already registered)\r\n")
 #define ERR_NEEDMOREPARAMS(s, c) (":" + std::string(s) + " 461 * " + std::string(c) + " :Not enough parameters\r\n")
 
+#define CMD_PING(server_name) ("PING :" + std::string(server_name) + "\r\n")
+
 // When they send PING without a token
 
 #define ERR_NOORIGIN(s) (":" + std::string(s) + " 409 * :No origin specified\r\n")
@@ -48,7 +50,7 @@
 #define RPL_PONG(s, token) (":" + std::string(s) + " PONG " + std::string(s) + " :" + std::string(token) + "\r\n")
 
 // This is what you send when the user has been quiet for too long.
-#define CMD_PING(server) ("PING :" + std::string(server) + "\r\n")
+
 //The Ping Timeout ERROR Macro
 #define ERR_PINGTIMEOUT(ip) ("ERROR :Closing Link: " + std::string(ip) + " (Ping timeout)\r\n")
 

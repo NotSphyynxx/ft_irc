@@ -391,7 +391,6 @@ int Server::checkClients(pollvec &sockarray)
 				}
 				else if (!cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getLastActivity()) > 60)
 				{
-					std::string PING = "PING :" + std::string(SERVER_NAME) + "\r\n";
 					cl.getoutbuffer() += CMD_PING(SERVER_NAME);
 					cl.setping(true);
 					cl.getwhenpingsent() = now;
