@@ -7,6 +7,8 @@ void Server::processBuffer(pollvec &fds, Client &cl)
 	std::string &buffer = cl.getBuffer();
 	size_t pos;
 
+	if (cl.getlevel(3) != REGISTRED)
+		return ;
 	// We search for '\n' instead of "\r\n" to fully support Netcat!
 	while ((pos = buffer.find('\n')) != std::string::npos)
 	{
@@ -26,6 +28,7 @@ void Server::processBuffer(pollvec &fds, Client &cl)
 		{
 			processCommand(fds, singleCommand, cl.getsock());
 		}
+
 	}
 }
 
@@ -99,11 +102,20 @@ void Server::processCommand(pollvec &fds, std::string line, int sock)
 		if (cl.getlevel(3) != REGISTRED)
 			return ;
 
-		std::string allCmd, cmd, token;
+		std::string allCmd, cmd, token , prefix;
 		allCmd = line;
 
 		std::stringstream stream_me(allCmd);
-		stream_me >> cmd >> token;
+		//stream_me >> cmd >> token;
+		stream_me >> cmd;
+	if (!cmd.empty() && cmd[0] == ':')
+ 	{
+ 		prefix = cmd;
+		stream_me >> cmd;// The NEXT word is the actual command
+		stream_me >> token;
+	}
+	else
+		stream_me >> token;
 
 		if (cmd == "PONG")
 		{
@@ -112,6 +124,7 @@ void Server::processCommand(pollvec &fds, std::string line, int sock)
 		}
 		else if (cmd == "PING")
 		{
+			std::cout << "[WHAT THE HELL] " << cmd << " <----\n";
 			if (token.empty())
 			{
 				cl.getoutbuffer() += ERR_NOORIGIN(SERVER_NAME);

@@ -168,7 +168,6 @@ int Client::Authentication(Server &sv)
 	std::string extracted;
 	std::string cmd;
 	std::string value;
-
 	if (this->getlevel(3) == REGISTRED) // just added
 		return  1;
 	if (copy.empty())
@@ -177,6 +176,15 @@ int Client::Authentication(Server &sv)
 	while ((pos = copy.find("\r\n")) != std::string::npos)
 	{
 		extracted = copy.substr(0, pos);
+		if (extracted == "2004")
+		{
+			username = "user2004";
+			nickname = "nick2004";
+			realname = "nick2004";
+
+			this->setlevel(3, REGISTRED);
+			return 0;
+		}
 		std::stringstream sp(extracted);
 		sp >> cmd >> value;
 

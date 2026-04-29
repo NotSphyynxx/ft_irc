@@ -124,7 +124,8 @@ int Server::run()
 				}
 				if (sockarray[i].revents & POLLOUT) // we have data to send
 				{
-					sendMessages(sockarray, i, sockarray[i].fd);
+					if (sendMessages(sockarray, i, sockarray[i].fd) == -1)
+						continue;
 					if (checkTimeout(sockarray))
 						continue;
 				}
@@ -219,7 +220,8 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 		closeSocket(fds, sock);
 		return -1;// check for -1 later
 	}
-	buff[bytes_recv] = '\0';
+	if (bytes_recv >= 0)
+		buff[bytes_recv] = '\0';
 	try {
 		Client &cl = getClient(sock);
 		cl.appand(buff);
@@ -262,7 +264,8 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 			{
 				if (errno == EWOULDBLOCK || errno == EAGAIN) // in a blocking socket the program would wait but since we set it to no blocking the func just return
 					return 0; // Just try again next time POLLOUT is ready
-				throw std::runtime_error("send() failed !");
+				cl.getTimeout() = true;
+				return -1;
 			}
 			buf.erase(0, bytesent);
 		if (!buf.empty())
@@ -277,7 +280,7 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 	{
 		(void)e;
 		std::cerr << "getClient() failed (at()) !" << std::endl;
-		return -1;
+		return 0;
 	}
 }
 
