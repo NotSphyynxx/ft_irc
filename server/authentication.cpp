@@ -37,7 +37,6 @@ bool Client::pass(std::string &pass, Server &sv)
 			return (outbuffer+=ERR_NEEDMOREPARAMS(SERVER_NAME, "PASS"), false);
 		outbuffer += ERR_PASSWDMISMATCH(SERVER_NAME);
 		timeOut = true;
-		//sv.closeSocket(sv.getpollstruct(), getsock());
 	}
 	return false;
 }
@@ -168,14 +167,21 @@ int Client::Authentication(Server &sv)
 	std::string extracted;
 	std::string cmd;
 	std::string value;
-	if (this->getlevel(3) == REGISTRED) // just added
+
+	if (this->getlevel(3) == REGISTRED)
 		return  1;
 	if (copy.empty())
 		return 0;
 
-	while ((pos = copy.find("\r\n")) != std::string::npos)
+	while ((pos = copy.find("\n")) != std::string::npos)
 	{
 		extracted = copy.substr(0, pos);
+		if (!extracted.empty() && extracted[extracted.length() - 1] == '\r')
+		{
+			extracted.erase(extracted.length() - 1);
+		}
+		if (extracted.empty())
+			continue;
 		if (extracted == "2004")
 		{
 			username = "user2004";
@@ -191,19 +197,19 @@ int Client::Authentication(Server &sv)
 		if (cmd == "PASS")
 		{
 			if (!this->pass(value, sv))
-				return (copy.erase(0 , pos + 2), 0);
+				return (copy.erase(0 , pos + 1), 0);
 		}
 		else if (cmd == "NICK")
 		{
 			if (getlevel(0) == hasPASS)//has_pass
 			{
 				if (!this->nick(value, sv))
-					return (copy.erase(0 , pos + 2), 0);
+					return (copy.erase(0 , pos + 1), 0);
 			}
 			else
 			{
 				this->getoutbuffer()+= ERR_NOTREGISTERED(SERVER_NAME);
-				return (copy.erase(0 , pos + 2), 0);
+				return (copy.erase(0 , pos + 1), 0);
 			}
 		}
 		else if (cmd == "USER")
@@ -211,24 +217,23 @@ int Client::Authentication(Server &sv)
 			if (getlevel(0) == hasPASS && getlevel(1) == hasNICK)//has_pass && has_nick
 			{
 				if (!this->user(extracted))
-					return (copy.erase(0 , pos + 2),0);
+					return (copy.erase(0 , pos + 1),0);
 			}
 			 else
 			{
 				this->getoutbuffer() +=  ERR_NOTREGISTERED(SERVER_NAME);;
-				return (copy.erase(0 , pos + 2),0);
+				return (copy.erase(0 , pos + 1),0);
 			}
 
 		}
 		else if (cmd == "QUIT")
 		{
-			//sv.closeSocket(sv.getpollstruct(), this->getsock());
 			outbuffer += ERR_QUIT(myIp, extracted.substr(cmd.size()));
 			timeOut = true;
 		}
 		else
-			return (copy.erase(0 , pos + 2),0);
-		copy.erase(0 , pos + 2);
+			return (copy.erase(0 , pos + 1),0);
+		copy.erase(0 , pos + 1);
 	}
 
 	return 1;

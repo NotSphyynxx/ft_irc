@@ -1,28 +1,6 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-// #include <sys/socket.h> // Core socket functions
-// #include <netinet/in.h> // sockaddr_in structure
-// #include <arpa/inet.h>  // inet_addr tools
-// #include <unistd.h>     // close()
-// #include <fcntl.h>      // fcntl() for non-blocking
-// #include <poll.h>
-// #include <sys/types.h>
-// #include <netdb.h>
-// #include <cstring>
-// // #include <winsock2.h>
-// // #include <ws2tcpip.h>
-// #include <iostream>
-// #include <stdexcept>
-// #include <vector>
-// #include <fcntl.h>
-// #include <unistd.h>
-// #include <map>
-// #include <string>
-// #include <ctime>
-// // #include "windows.h"
-// #include <cerrno>
-
 #include "Server.hpp"
 class Server;
 enum Level

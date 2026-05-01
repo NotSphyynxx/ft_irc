@@ -34,7 +34,7 @@ Server::Server(char *pt, char *pass)
 			continue;
 		}
 		int truee = 1;
-		if  (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &truee, sizeof(truee)) == -1)
+		if  (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &truee, sizeof(truee)) == -1) // tell os to reuse the port even if it stuck on time wait
 		 {
 			 close(sockfd);
 			 continue;
@@ -85,7 +85,7 @@ int Server::run()
 		// check if there is data waiting in the client outputbuffer
 		checkPollout(sockarray);
 
-		p = poll(sockarray.data(), sockarray.size(), 3000); // so poll wait up to the time specified if there is no data flow it return 0
+		p = poll(&sockarray[0], sockarray.size(), 3000); // so poll wait up to the time specified if there is no data flow it return 0
 
 		if (p < 0)
 		{
@@ -205,7 +205,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 	ssize_t bytes_recv;
 
 	memset(buff, 0, sizeof(buff));
-	bytes_recv = recv(sock, buff, BUFFER - 1, 0);
+	bytes_recv = recv(sock, buff, BUFFER, 0);
 	if (bytes_recv == -1)
 	{
 		if (errno == EWOULDBLOCK || errno == EAGAIN)
@@ -220,8 +220,6 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 		closeSocket(fds, sock);
 		return -1;// check for -1 later
 	}
-	if (bytes_recv >= 0)
-		buff[bytes_recv] = '\0';
 	try {
 		Client &cl = getClient(sock);
 		cl.appand(buff);
@@ -242,7 +240,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 	catch (const std::out_of_range& e)
 	{
 		(void)e;
-		std::cerr << "getClient() failed (at()) !" << std::endl;
+		std::cerr << "getClient() failed at Recieving messages !" << std::endl;
 		closeSocket(fds, sock); // i guess you should remove this
 		return -1;
 	}
@@ -286,8 +284,7 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 
 Server::~Server()
 {
-   // freeaddrinfo(getServerI());
-   // close(sockfd);
+	Cleanup(sockarrayy);
 }
 
 bool Server::clientExists(int fd) const
@@ -345,6 +342,22 @@ void Server::closeSocket(pollvec &fds, int sock)
 	removeClient(sock);
 	close(sock);
 }
+
+void Server::Cleanup(pollvec &fds)
+{
+	std::vector <struct pollfd>::iterator it = fds.begin();
+	for (; it != fds.end(); it++)
+	{
+		if (clientExists(it->fd))
+		{
+			Client &cl = getClient(it->fd);
+			removeClientFromAllChannels(&cl, "Connection closed");
+		}
+		close(it->fd);
+		fds.erase(it);
+	}
+}
+
 
 int Server::checkTimeout(pollvec &sockarray) // closing sockets
 {
@@ -442,34 +455,6 @@ int Server::checkPollout(pollvec &fds)
 		}
 	}
 	return 1;
-}
-
-
-
-void Server::broadcast(pollvec &fds, std::string message)
-{
-	// fds here are the ones that live in a specific channel
-	//When you finally builds the Channel
-	//class, you will store FDs. If you close a
-	//socket, you must make sure they know so they can
-	//remove that FD from their channel lists.
-
-	size_t i = 1;
-
-	for (; i < fds.size();)
-	{
-		try
-		{
-			Client &cl = getClient(fds[i].fd);
-			cl.getoutbuffer() += message;
-			i++;
-		}
-		catch (const std::out_of_range& e)
-		{
-		   (void)e;
-			continue;
-		}
-	}
 }
 
 long Server::getclientbyNick(const std::string &nick)

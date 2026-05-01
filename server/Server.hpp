@@ -113,13 +113,13 @@ class Server
 		pollvec &getpollstruct();
 		bool sameName(std::string &nickname);
 		void	closeSocket(pollvec &fds, int sock);
+		void	Cleanup(pollvec &fds);
 		int		checkTimeout(pollvec &fds);
 		int		checkPollout(pollvec &fds);
 		int		checkClients(pollvec &sockarray);
 		struct addrinfo *getServerI();
 		void	addClient(int fd);
 		void	processCommand(pollvec &fds, std::string line, int sock);
-		void	broadcast(pollvec &fds, std::string message);
 		void	processBuffer(pollvec &fds, Client &cl);
 		bool	Privmsg(Client &cl, std::string allCmd);
 
