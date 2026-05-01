@@ -413,8 +413,8 @@ int Server::checkClients(pollvec &sockarray)
 				}
 				else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getwhenpingsent()) > 60)
 				{
-					cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
-					cl.getTimeout() = true;
+					//cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
+					//cl.getTimeout() = true;
 					//closeSocket(sockarray, sockarray[i].fd);  <----- later
 					//continue;
 				}
