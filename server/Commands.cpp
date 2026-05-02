@@ -115,7 +115,7 @@ void Server::processCommand(pollvec &fds, std::string line, int sock)
 	}
 	else
 		stream_me >> token;
-
+	toUpper(cmd);
 		if (cmd == "PONG")
 		{
 			cl.setLastActivity(time(NULL));

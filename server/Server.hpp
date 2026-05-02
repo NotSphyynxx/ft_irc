@@ -140,5 +140,6 @@ class Server
 int     myport(char *port);
 bool    mypass(char *pass);
 int     parsechannel();
+void	toUpper(std::string &s);
 
 #endif

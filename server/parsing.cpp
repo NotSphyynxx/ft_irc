@@ -34,4 +34,13 @@ bool mypass(char *pass)
 	return true;
 }
 
+void toUpper(std::string &s)
+{
+	for (size_t i = 0; i < s.length(); ++i)
+	{
+		// Cast to unsigned char to handle 8-bit characters safely
+		s[i] = (char)std::toupper((unsigned char)s[i]);
+	}
+}
+
 

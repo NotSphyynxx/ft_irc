@@ -193,7 +193,7 @@ int Client::Authentication(Server &sv)
 		}
 		std::stringstream sp(extracted);
 		sp >> cmd >> value;
-
+		toUpper(cmd);
 		if (cmd == "PASS")
 		{
 			if (!this->pass(value, sv))
