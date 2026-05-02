@@ -24,6 +24,7 @@ class Channel {
 
         void addOperator(Client* client);
         bool isOperator(Client* client);
+        std::string getModesString() const;
 
         void addMember(Client* client);
         bool isMember(Client* client);

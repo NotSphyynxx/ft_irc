@@ -93,7 +93,6 @@ bool	Server::Privmsg(Client &cl , std::string allCmd)
 	return true;
 }
 
-
 void Server::processCommand(pollvec &fds, std::string line, int sock)
 {
 	try
@@ -280,6 +279,67 @@ void Server::processCommand(pollvec &fds, std::string line, int sock)
 			chan->broadcastMessage(kickMsg);
 
 			chan->removeMember(targetClient);
+		}
+		else if(cmd == "mode"|| cmd =="MODE")
+		{
+			std::stringstream ss(allCmd);
+			std::string mode , channelName, modeChanges;
+			ss >> mode >> channelName >> modeChanges;
+			if (channelName.empty())
+			{
+				cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " MODE :Not enough parameters\r\n";
+				return;
+			}
+			if (channelName[0] != '#')
+			{
+				cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " MODE :Not enough parameters\r\n";
+				return;
+			}
+			Channel *chn = getChannel(channelName);
+			if (chn == NULL)
+			{
+				cl.getoutbuffer() += ":ft_irc.2004.ma 403 " 
+					+ cl.getnickname() + " " + channelName 
+					+ " :No such channel\r\n";
+				return;
+			}
+			if (modeChanges.empty())
+			{
+				// std::string modes = chn->getModesString(); // e.g. "+itk"
+				
+				// cl.getoutbuffer() += ":ft_irc.2004.ma 324 "
+				// 	+ cl.getnickname() + " "
+				// 	+ channelName + " "
+				// 	+ modes + "\r\n";
+
+				return;
+			}
+	std::vector<std::string> params;
+	std::string tmp;
+	while (ss >> tmp)
+		params.push_back(tmp);
+	size_t paramIndex = 0;
+	char sign = '+';
+	for (size_t i = 0; i < modeChanges.length(); ++i)
+	{
+		char c = modeChanges[i];
+
+		if (c == '+' || c == '-')
+		{
+			sign = c;
+			continue;
+		}
+		if (c == 'o' || c == 'k' || c == 'l')
+		{
+			if (paramIndex >= params.size())
+			{
+				cl.getoutbuffer() += ":ft_irc.2004.ma 461 "
+					+ cl.getnickname() + " MODE :Not enough parameters\r\n";
+				return;
+			}
+			std::string param = params[paramIndex++];
+		}
+	}
 		}
 	}
 	catch (const std::out_of_range& e)

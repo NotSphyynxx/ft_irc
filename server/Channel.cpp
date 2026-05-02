@@ -7,6 +7,34 @@ Channel::Channel(std::string name) : _name(name) {}
 
 Channel::~Channel() {}
 
+// std::string Channel::getModesString() const
+// {
+//     std::string modes = "+";
+//     std::string params;
+
+//     if (this->_inviteOnly)
+//         modes += "i";
+
+//     if (this->_topicRestricted)
+//         modes += "t";
+
+//     if (this->_hasKey)
+//     {
+//         modes += "k";
+//         params += " " + this->_key;
+//     }
+
+//     // if (this->_hasLimit)
+//     // {
+//     //     modes += "l";
+//     //     std::stringstream ss;
+//     //     ss << this->_limit;
+//     //     params += " " + ss.str();
+//     // }
+
+//     return modes + params;
+// }
+
 std::string Channel::getName() const {
     return _name;
 }
