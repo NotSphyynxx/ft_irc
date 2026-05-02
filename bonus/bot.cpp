@@ -127,7 +127,7 @@ int main(int argc , char **argv)
 							"Schrödinger’s cat walks into a bar. And doesn't.",
 							"A C++ developer, a Java developer, and a Python developer walk into a cafe. The Java dev waits 5 minutes for the garbage collector to clear a table. The Python dev imports a table. The C++ dev builds a table from scratch, eats, and then accidentally destroys the entire cafe trying to free the memory.","Why did the database administrator leave his wife? She had one-to-many relationships." , "Why do programmers prefer dark mode? Because light attracts bugs."
 							};
-
+	std::string art;
 	std::string passCmd = "PASS " + std::string(argv[3]) + "\r\n";
 	sending(passCmd, sockBot);
 
@@ -143,24 +143,35 @@ int main(int argc , char **argv)
 	while (1)
 	{
 		byte_recv = recv(sockBot, buff, sizeof(buff) - 1, 0);
-		if (byte_recv == -1)
+		if (byte_recv <= 0)
 		{
-			if (errno == EWOULDBLOCK || errno == EAGAIN)
-				continue;
-			std::cerr << "recv() failed !" << std::endl;
-			close(sockBot);
-			return -1; // check for -1 later
+			if (byte_recv == 0)
+			{
+				std::cout << "Bot disconnected !" << std::endl;
+				return 0;
+			}
+			else
+			{
+				std::cerr << "recv() failed !" << std::endl;
+				close(sockBot);
+				return -1;
+			}
 		}
-		if (byte_recv >= 0)
-			buff[byte_recv] = '\0';
+		buff[byte_recv] = '\0';
 		fullBuff += buff;
 		size_t pos;
 
-		while ((pos = fullBuff.find("\r\n")) != std::string::npos)
+		while ((pos = fullBuff.find("\n")) != std::string::npos)
 		{
 			std::cout << "[SERVER] " << fullBuff << std::endl;
 			std::string prefix, cmd, target, what;
 			std::string line = fullBuff.substr(0, pos);
+			if (!line.empty() && line[line.length() - 1] == '\r')
+			{
+				line.erase(line.length() - 1);
+			}
+			if (line.empty())
+				continue;
 			std::stringstream ss(line);
 			ss >> prefix >> cmd >> target;
 			if (prefix == "PING")
@@ -170,7 +181,7 @@ int main(int argc , char **argv)
 			}
 			else if (cmd == "PONG")
 				continue;
-			else if (cmd == "PRIVMSG")//token here is the cmd
+			else if (cmd == "PRIVMSG")
 			{
 				size_t mark = prefix.find("!");
 				std::string sender = prefix.substr(1, mark - 1);
@@ -180,15 +191,29 @@ int main(int argc , char **argv)
 					long guess = rand() % 101;
 					std::stringstream tostr;
 					tostr << guess;
+					art =
+					" 88 88  88  \n"
+    " 88  88  88  /\\_/\\\n"
+    " 88  88  88 ( o.o )\n"
+    " 88  88  88  > ^ <\n"
+					"====> " + tostr.str() + "\n";
+
 					std::string ReplyTarget = (target[0] == '#' || target[0] == '&') ? target : sender;
-					std::string reply = bot_CMD_PRIVMSG("PRIVMSG", ReplyTarget, tostr.str());
+					std::string reply = bot_CMD_PRIVMSG("PRIVMSG", ReplyTarget, art);
 					sending(reply , sockBot);
 				}
 				if (what == "!joke")
 				{
 					long random = rand() % 5;
+					art = " 8888  8888\n"
+    " 88 88  88  \n"
+    " 88  88  88  /\\_/\\\n"
+    " 88  88  88 ( o.o )\n"
+    " 88  88  88  > ^ <\n"
+    "====> " + Jokes[random] + "\n";
+
 					std::string ReplyTarget = (target[0] == '#' || target[0] == '&') ? target : sender;
-					std::string reply = bot_CMD_PRIVMSG("PRIVMSG", ReplyTarget, Jokes[random]);
+					std::string reply = bot_CMD_PRIVMSG("PRIVMSG", ReplyTarget, art);
 					sending(reply , sockBot);
 				}
 			}
@@ -202,7 +227,7 @@ int main(int argc , char **argv)
 				std::string joinReq = "JOIN " + channel + "\r\n";
 				sending(joinReq, sockBot);
 			}
-			fullBuff.erase(0, pos + 2);
+			fullBuff.erase(0, pos + 1);
 		}
 	}
 	}

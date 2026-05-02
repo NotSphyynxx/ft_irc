@@ -111,7 +111,7 @@ class Server
 		Client& getClient(int fd);
 		const cmaps & getcmaps();
 		pollvec &getpollstruct();
-		bool sameName(std::string &nickname);
+		bool	sameName(std::string &nickname);
 		void	closeSocket(pollvec &fds, int sock);
 		void	Cleanup(pollvec &fds);
 		int		checkTimeout(pollvec &fds);
