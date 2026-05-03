@@ -234,7 +234,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 		{
 			cl.Authentication(*this);
 		}
-		processBuffer(fds, cl);
+		processBuffer(cl);
 		std::cout << "client " << sock  << " : received " << buff << std::endl;
 	}
 	catch (const std::out_of_range& e)
@@ -254,17 +254,18 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 		ssize_t bytesent;
 		Client &cl = getClient(sock);
 		std::string &buf = cl.getoutbuffer();
-
+		std::cout << "[DEBUG] Attempting to send " << buf.size() << " bytes to socket " << sock << std::endl;
 		if (buf.empty())
-			return (0);
+			return (fds[i].events &= ~POLLOUT,0);
 			// fds[i].events |= POLLOUT;
 			if ((bytesent = send(sock, buf.c_str(), buf.size(), 0)) == -1)
 			{
 				if (errno == EWOULDBLOCK || errno == EAGAIN) // in a blocking socket the program would wait but since we set it to no blocking the func just return
-					return 0; // Just try again next time POLLOUT is ready
+					return (std::cout << "[DEBUG] EAGAIN hit for socket " << sock << ". OS bucket is full!" << std::endl,0); // Just try again next time POLLOUT is ready
 				cl.getTimeout() = true;
 				return -1;
 			}
+			std::cout << "[DEBUG] Partial Send: Sent " << bytesent << " bytes. " << (buf.size() - bytesent) << " bytes remain." << std::endl;
 			buf.erase(0, bytesent);
 		if (!buf.empty())
 			fds[i].events |= POLLOUT;
@@ -277,7 +278,8 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 	catch (const std::out_of_range& e)
 	{
 		(void)e;
-		std::cerr << "getClient() failed (at()) !" << std::endl;
+		std::cerr << "getClient() failed at sending messages !" << std::endl;
+		fds[i].events &= ~POLLOUT;
 		return 0;
 	}
 }
@@ -422,6 +424,7 @@ int Server::checkClients(pollvec &sockarray)
 			catch (const std::out_of_range& e)
 			{
 				(void)e;
+				i++;
 				continue;
 			}
 		}

@@ -23,7 +23,6 @@
 #include "../server/Server.hpp"
 
 
-#define bot_CMD_PRIVMSG(cmd, target, text) ("PRIVMSG " + std::string(target) + " :" + std::string(text) + "\r\n")
 
 struct socket_bot
 {
@@ -122,7 +121,6 @@ int main(int argc , char **argv)
 	memset(buff, 0, sizeof(buff));
 	std::string	fullBuff;
 	ssize_t byte_recv ;
-	ssize_t byte_sent;
 	std::string Jokes[5] = {"I have a great joke about UDP, but I'm not sure you'll get it.",
 							"Schrödinger’s cat walks into a bar. And doesn't.",
 							"A C++ developer, a Java developer, and a Python developer walk into a cafe. The Java dev waits 5 minutes for the garbage collector to clear a table. The Python dev imports a table. The C++ dev builds a table from scratch, eats, and then accidentally destroys the entire cafe trying to free the memory.","Why did the database administrator leave his wife? She had one-to-many relationships." , "Why do programmers prefer dark mode? Because light attracts bugs."
@@ -163,15 +161,16 @@ int main(int argc , char **argv)
 
 		while ((pos = fullBuff.find("\n")) != std::string::npos)
 		{
-			std::cout << "[SERVER] " << fullBuff << std::endl;
 			std::string prefix, cmd, target, what;
 			std::string line = fullBuff.substr(0, pos);
+			fullBuff.erase(0, pos + 1);
 			if (!line.empty() && line[line.length() - 1] == '\r')
 			{
 				line.erase(line.length() - 1);
 			}
 			if (line.empty())
-				continue;
+			continue;
+			std::cout << "[SERVER] " << line << std::endl;
 			std::stringstream ss(line);
 			ss >> prefix >> cmd >> target;
 			if (prefix == "PING")
@@ -191,29 +190,35 @@ int main(int argc , char **argv)
 					long guess = rand() % 101;
 					std::stringstream tostr;
 					tostr << guess;
-					art =
-					" 88 88  88  \n"
-    " 88  88  88  /\\_/\\\n"
-    " 88  88  88 ( o.o )\n"
-    " 88  88  88  > ^ <\n"
-					"====> " + tostr.str() + "\n";
+					art =  "    _ _ _             \n"
+					"          | | (_)            \n"
+					" _ __ ___ | | |_ _ __   __ _ \n"
+					"| '__/ _ \\| | | | '_ \\ / _` |\n"
+					"| | | (_) | | | | | | | (_| |\n"
+					"|_|  \\___/|_|_|_|_| |_|\\__, |\n"
+					"                        __/ |\n"
+					"                       |___/ \n"
+					"====> " + tostr.str();
 
 					std::string ReplyTarget = (target[0] == '#' || target[0] == '&') ? target : sender;
-					std::string reply = bot_CMD_PRIVMSG("PRIVMSG", ReplyTarget, art);
+					std::string reply = bot_ascii_trim_line(ReplyTarget, art);
 					sending(reply , sockBot);
 				}
 				if (what == "!joke")
 				{
 					long random = rand() % 5;
-					art = " 8888  8888\n"
-    " 88 88  88  \n"
-    " 88  88  88  /\\_/\\\n"
-    " 88  88  88 ( o.o )\n"
-    " 88  88  88  > ^ <\n"
-    "====> " + Jokes[random] + "\n";
+					art =  "   _       _        \n"
+					"  (_)     | |       \n"
+					"   _  ___ | | _____ \n"
+					"  | |/ _ \\| |/ / _ \\\n"
+					"  | | (_) |   <  __/\n"
+					"  | |\\___/|_|\\_\\___|\n"
+					" _/ |               \n"
+					"|__/                \n"
+					"====> " + Jokes[random];
 
 					std::string ReplyTarget = (target[0] == '#' || target[0] == '&') ? target : sender;
-					std::string reply = bot_CMD_PRIVMSG("PRIVMSG", ReplyTarget, art);
+					std::string reply = bot_ascii_trim_line(ReplyTarget, art);
 					sending(reply , sockBot);
 				}
 			}
@@ -227,7 +232,6 @@ int main(int argc , char **argv)
 				std::string joinReq = "JOIN " + channel + "\r\n";
 				sending(joinReq, sockBot);
 			}
-			fullBuff.erase(0, pos + 1);
 		}
 	}
 	}

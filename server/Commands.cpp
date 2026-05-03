@@ -2,7 +2,7 @@
 #include "Server.hpp"
 #include <sstream>
 
-void Server::processBuffer(pollvec &fds, Client &cl)
+void Server::processBuffer(Client &cl)
 {
 	std::string &buffer = cl.getBuffer();
 	size_t pos;
@@ -26,7 +26,7 @@ void Server::processBuffer(pollvec &fds, Client &cl)
 		// D. Safety Check: Ignore empty lines (e.g., if they just spammed Enter)
 		if (!singleCommand.empty())
 		{
-			processCommand(fds, singleCommand, cl.getsock());
+			processCommand(singleCommand, cl.getsock());
 		}
 
 	}
@@ -93,7 +93,7 @@ bool	Server::Privmsg(Client &cl , std::string allCmd)
 	return true;
 }
 
-void Server::processCommand(pollvec &fds, std::string line, int sock)
+void Server::processCommand(std::string line, int sock)
 {
 	try
 	{
@@ -298,15 +298,15 @@ void Server::processCommand(pollvec &fds, std::string line, int sock)
 			Channel *chn = getChannel(channelName);
 			if (chn == NULL)
 			{
-				cl.getoutbuffer() += ":ft_irc.2004.ma 403 " 
-					+ cl.getnickname() + " " + channelName 
+				cl.getoutbuffer() += ":ft_irc.2004.ma 403 "
+					+ cl.getnickname() + " " + channelName
 					+ " :No such channel\r\n";
 				return;
 			}
 			if (modeChanges.empty())
 			{
 				// std::string modes = chn->getModesString(); // e.g. "+itk"
-				
+
 				// cl.getoutbuffer() += ":ft_irc.2004.ma 324 "
 				// 	+ cl.getnickname() + " "
 				// 	+ channelName + " "

@@ -2,7 +2,7 @@ NAME = ircserv
 BOT_NAME = bot
 
 CXX = c++
-CXXFLAGS = -std=c++98
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98
 
 SERVER_DIR = server
 UTILS_DIR = ft_utils

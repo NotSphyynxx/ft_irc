@@ -40,4 +40,27 @@ void toUpper(std::string &s)
 	}
 }
 
+std::string bot_ascii_trim_line(const std::string& target, const std::string& raw_text)
+{
+	std::stringstream ss(raw_text);
+	std::string line;
+	std::string final_syntax = "";
+
+	// This loop safely chops the raw text at every '\n'
+	while (std::getline(ss, line))
+	{
+		// Clean off any lingering \r
+		if (!line.empty() && line[line.length() - 1] == '\r')
+			line.erase(line.length() - 1);
+
+		// Skip completely empty lines so the IRC server doesn't disconnect you for spam
+		if (line.empty())
+			continue;
+
+		// Forge the individual PRIVMSG command and stack it
+		final_syntax += bot_CMD_PRIVMSG(target, line);
+	}
+	return final_syntax;
+}
+
 

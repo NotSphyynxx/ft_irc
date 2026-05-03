@@ -39,6 +39,7 @@
 #define ERR_NICKINUSE(s, n) (":" + std::string(s) + " 433 * " + std::string(n) + " :Nickname is already in use\r\n")
 #define ERR_ALREADYREG(s) (":" + std::string(s) + " 462 * :Unauthorized command (already registered)\r\n")
 #define ERR_NEEDMOREPARAMS(s, c) (":" + std::string(s) + " 461 * " + std::string(c) + " :Not enough parameters\r\n")
+#define bot_CMD_PRIVMSG(target, text) ("PRIVMSG " + std::string(target) + " :" + std::string(text) + "\r\n")
 
 #define CMD_PING(server_name) ("PING :" + std::string(server_name) + "\r\n")
 
@@ -119,8 +120,8 @@ class Server
 		int		checkClients(pollvec &sockarray);
 		struct addrinfo *getServerI();
 		void	addClient(int fd);
-		void	processCommand(pollvec &fds, std::string line, int sock);
-		void	processBuffer(pollvec &fds, Client &cl);
+		void	processCommand(std::string line, int sock);
+		void	processBuffer(Client &cl);
 		bool	Privmsg(Client &cl, std::string allCmd);
 
 		// --- Player 2 Channel Methods ---
@@ -137,9 +138,10 @@ class Server
 
 };
 
-int     myport(char *port);
-bool    mypass(char *pass);
-int     parsechannel();
-void	toUpper(std::string &s);
+int			myport(char *port);
+bool		mypass(char *pass);
+int 		parsechannel();
+void		toUpper(std::string &s);
+std::string	bot_ascii_trim_line(const std::string& target, const std::string& raw_text);
 
 #endif
