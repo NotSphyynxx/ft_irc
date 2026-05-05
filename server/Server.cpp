@@ -148,6 +148,11 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 	memset(&st, 0, sizeof(st));
 	if ((new_fd = accept(sock,(sockaddr *) &st, &sz)) == -1)
 	{
+		if (errno == EMFILE || errno == ENFILE)
+		{
+			std::cerr << "[WARNING] Server is full. Dropping new connection." << std::endl;
+			return 0;
+		}
 		std::cerr << "accept () failed on new connection!" << std::endl;
 		return 0;
 	}
@@ -415,9 +420,10 @@ int Server::checkClients(pollvec &sockarray)
 				}
 				else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getwhenpingsent()) > 60)
 				{
-					//cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
+					//cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp()); 
 					//cl.getTimeout() = true;
-					//closeSocket(sockarray, sockarray[i].fd);  <----- later
+
+					//closeSocket(sockarray, sockarray[i].fd);  <----- later (removed)
 					//continue;
 				}
 			}
