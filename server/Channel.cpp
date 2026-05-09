@@ -113,3 +113,69 @@ void Channel::removeMember(Client* client){
         }
     }
 }
+
+
+// tal3i funcrtion
+
+Client* Channel::getClientByNickname(const std::string& nickname)
+{
+    for (size_t i = 0; i < _clients.size(); i++)
+    {
+        if (_clients[i]->getnickname() == nickname)
+            return _clients[i];
+    }
+    return NULL;
+}
+
+void Channel::removeOperator(Client* client)
+{
+    for (size_t i = 0; i < _operators.size(); i++)
+    {
+        if (_operators[i] == client)
+        {
+            _operators.erase(_operators.begin() + i);
+            return;
+        }
+    }
+}
+
+void Channel::setKey(const std::string& key)
+{
+    _key = key;
+}
+
+std::string Channel::getKey() const
+{
+    return _key;
+}
+
+void Channel::removeKey()
+{
+    _key = "";
+}
+
+bool Channel::hasKey() const
+{
+    return !_key.empty();
+}
+
+void Channel::setLimit(int limit)
+{
+    _limit = limit;
+}
+
+void Channel::removeLimit()
+{
+    _limit = 0;
+}
+
+int Channel::getLimit() const
+{
+    return _limit;
+}
+
+bool Channel::hasLimit() const
+{
+    return _limit > 0;
+}
+//tal3i fnuction

@@ -236,7 +236,26 @@ void Server::processCommand(std::string line, int sock)
 			} else {
 				chan->addMember(&cl);
 			}
+			//tal3i code------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			if (chan->getLimit() > 0 && chan->getMembers().size() > static_cast<size_t>(chan->getLimit())) {
+				chan->removeMember(&cl);
+				cl.getoutbuffer() += ":ft_irc.2004.ma 471 " + cl.getnickname() + " " + channelName + " :Cannot join channel (+l)\r\n";
+				return;
+			}
+			if (chan->hasKey()) {
+				std::string providedKey;
+				size_t keyPos = allCmd.find(chan->getKey());
+				if (keyPos != std::string::npos) {
+					providedKey = allCmd.substr(keyPos, chan->getKey().length());
+				}
 
+				if (providedKey != chan->getKey()) {
+					chan->removeMember(&cl);
+					cl.getoutbuffer() += ":ft_irc.2004.ma 475 " + cl.getnickname() + " " + channelName + " :Cannot join channel (+k)\r\n";
+					return;
+				}
+			}
+			//------------------------------------------------------------------------------SFIMX RAK 4IRE 9AWAD DYL DAHMANE-----------------------------------------------------------------------------------------------------
 			// Slice 2: The Protocol Handshake
 			std::string nick = cl.getnickname();
 			std::string user = cl.getusername();
@@ -397,6 +416,31 @@ void Server::processCommand(std::string line, int sock)
 				return;
 			}
 			std::string param = params[paramIndex++];
+			if (c == 'o')
+			{
+				run_o(*chn, cl, param, sign);
+			}
+			else if (c == 'k')
+			{
+				run_k(*chn, cl, param, sign);
+			}
+			else if (c == 'l')
+			{
+				run_l(*chn, cl, param, sign);
+			}
+		}
+		else if (c == 'i' || c == 't')
+		{
+			if (c == 'i')
+				std:: cout << "basiiiiiiiiiiiiiite sahbi\n";
+			else if (c == 't')
+				std::cout << "bassiiiiiiiiiiiiiiiite my man\n";
+				
+		}
+		else
+		{
+			cl.getoutbuffer() += ":ft_irc.2004.ma 472 "
+				+ cl.getnickname() + " " + c + " :is unknown mode char to me\r\n";
 		}
 	}
 		}
