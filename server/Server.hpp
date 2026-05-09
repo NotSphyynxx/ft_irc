@@ -144,4 +144,11 @@ int 		parsechannel();
 void		toUpper(std::string &s);
 std::string	bot_ascii_trim_line(const std::string& target, const std::string& raw_text);
 
+
+//tal3i
+void		run_o(Channel& chn, Client& cl, std::string& param, char sign);
+void		run_k(Channel& chn, Client& cl, std::string& param, char sign);
+void 		run_l(Channel& chn, Client& cl, std::string& param, char sign);
+//tal3i 
+
 #endif

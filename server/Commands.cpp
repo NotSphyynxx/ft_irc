@@ -338,6 +338,18 @@ void Server::processCommand(std::string line, int sock)
 				return;
 			}
 			std::string param = params[paramIndex++];
+			if (c == 'o')
+			{
+				run_o(*chn, cl, param, sign);
+			}
+			if (c == 'k')
+			{
+				run_k(*chn, cl, param, sign);
+			}
+			if (c == 'l')
+			{
+				run_l(*chn, cl, param, sign);
+			}
 		}
 	}
 		}

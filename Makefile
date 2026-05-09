@@ -14,7 +14,8 @@ SRC = main.cpp \
 	$(SERVER_DIR)/parsing.cpp \
 	$(SERVER_DIR)/Commands.cpp\
 	$(SERVER_DIR)/GettersSetters.cpp \
-	$(SERVER_DIR)/Channel.cpp
+	$(SERVER_DIR)/Channel.cpp \
+	$(SERVER_DIR)/mode.cpp \
 
 B_SRC = bonus/bot.cpp server/parsing.cpp
 
