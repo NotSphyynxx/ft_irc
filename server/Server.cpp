@@ -19,14 +19,14 @@ Server::Server(char *pt, char *pass)
 	hints.ai_flags = AI_PASSIVE; // force the socket to listen to all net interface (ip is 0.0.0.0 )
 
 
-	if ((check = getaddrinfo(NULL, pt, &hints, &server_info)) != 0)
+	if ((check = getaddrinfo(NULL, pt, &hints, &server_info)) != 0) // DNS LOOKUP
 	{
 	   throw std::runtime_error("getaddrinfo failed !");
 	}
 
 	for (p = server_info; p != NULL; p = p->ai_next)
 	{
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) // the os kernel allocates a block of ram & create the send buffer and recieve buffer
 			continue;
 		if (fcntl(sockfd, F_SETFL, O_NONBLOCK) == -1)
 		{
@@ -44,24 +44,23 @@ Server::Server(char *pt, char *pass)
 			close(sockfd);
 			continue;
 		}
+		if (listen(sockfd, REQUEST) == -1) // listen is by default non blocking cuz it just switch the state form active socket to passive
+		{
+			close(sockfd);
+			continue;
+		}
 		break;
 	}
 	if (p == NULL)
 	{
 		freeaddrinfo(server_info);
-		throw std::runtime_error("Server failed to bind to any address");
-	}
-	if (listen(sockfd, REQUEST) == -1) // listen is by default non blocking cuz it just switch the state form active socket to passive
-	{
-		freeaddrinfo(server_info);
-		close(sockfd);
-		throw std::runtime_error("listen failed !");
+		throw std::runtime_error("[SERVER] : failed to bind to any address");
 	}
 	struct sockaddr_in *tmp = (struct sockaddr_in *) &p;
 	char ipchar[IPV4LEN];
 	inet_ntop(tmp->sin_family, &tmp->sin_addr, ipchar, sizeof(ipchar));
 	setServerIp(ipchar);
-	std::cout << "server: waiting for connections... " << std::endl;
+	std::cout << "[SERVER] : waiting for connections... " << std::endl;
 	freeaddrinfo(server_info);
 	server_info  = NULL;
 }
@@ -69,7 +68,7 @@ Server::Server(char *pt, char *pass)
 int Server::run()
 {
 	pollvec &sockarray = getpollstruct();
-	int server_sock = getsocket();
+	int server_sock = this->sockfd;
 
 	//add the main socket (server) to our pollfd vector
 	struct pollfd pfd;
@@ -83,8 +82,9 @@ int Server::run()
 	{
 		// check if there is data waiting in the client outputbuffer
 		checkPollout(sockarray);
+		int did_we_reach_p = 0;
 
-		p = poll(&sockarray[0], sockarray.size(), 3000); // so poll wait up to the time specified if there is no data flow it return 0
+		p = poll(&sockarray[0], sockarray.size(), 3000); // so poll wait up to the time specified if there is no data flow it return 0 (so we can check timeout)
 
 		if (p < 0)
 		{
@@ -95,20 +95,25 @@ int Server::run()
 		}
 		if (p == 0)
 		{
-			checkClients(sockarray);
-			checkTimeout(sockarray);
+			checkClients(sockarray); // set the timeout if there is an inactive or unregistered client
+			checkTimeout(sockarray);// close client with timeout flag
 			continue ;
 			//return 0;// nothing happened (timeout)  but if you said -1 then probably you need to rm this check
 		}
 		else
 		{
+			did_we_reach_p = 0;
 			for (size_t i = 0; i < sockarray.size();)
 			{
+				if (did_we_reach_p == p) // loop as long as there is an unchecked event ( index <= poll return value )
+					break ;
 				if (sockarray[i].revents & POLLIN)
 				{
+					did_we_reach_p++;
 					if (sockarray[i].fd == server_sock) // from listener (a new connection)
 					{
-						NewConnection(sockarray, server_sock);
+						if (NewConnection(sockarray, server_sock) == -1)
+							continue;
 					}
 					else // a client
 					{
@@ -118,11 +123,13 @@ int Server::run()
 				}
 				if (sockarray[i].revents & (POLLHUP | POLLERR)) // in case we lost the connection in specific sockets or it may be an error
 				{
+					did_we_reach_p++;
 					closeSocket(sockarray, sockarray[i].fd);
 					continue;
 				}
 				if (sockarray[i].revents & POLLOUT) // we have data to send
 				{
+					did_we_reach_p++;
 					if (sendMessages(sockarray, i, sockarray[i].fd) == -1) // you may need to lop here
 						continue;
 					if (checkTimeout(sockarray))
@@ -174,13 +181,13 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 		{
 			hp =  (struct sockaddr_in *) &st;
 			inet_ntop(hp->sin_family, &hp->sin_addr, ipv4char, sizeof(ipv4char));
-		 	std::cout << "New connection from: " << ipv4char << " : "  << ntohs(hp->sin_port) << std::endl;
+		 	std::cout << "[SERVER] : New connection from: " << ipv4char << " : "  << ntohs(hp->sin_port) << std::endl;
 		}
 		else if (st.ss_family == AF_INET6)
 		{
 			s6 =  (struct sockaddr_in6 *) &st;
 			inet_ntop(s6->sin6_family, &s6->sin6_addr, ipv4char, sizeof(ipv4char));
-			std::cout << "New connection from: " << ipv4char << " : "  << ntohs(s6->sin6_port) << std::endl;
+			std::cout << "[SERVER] : New connection from: " << ipv4char << " : "  << ntohs(s6->sin6_port) << std::endl;
 		}
 		cl.setIp(ipv4char);
 			// hp->sin_port is in Network Byte Order, so we use ntohs()
@@ -188,19 +195,20 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 
 			// cl.setconnecttinme(time(NULL));
 			// cl.setLastActivity(time(NULL));
+
+			// add the incoming connection to our pollfd
+			struct pollfd tmp;
+			tmp.fd = new_fd;
+			tmp.events = POLLIN;
+			fds.push_back(tmp);
 	}
 	catch (const std::out_of_range& e)
 	{
 		(void)e;
-		std::cerr << "getClient() failed (at()) !" << std::endl;
-		close(new_fd);
-		return 0;
+		std::cerr << "[SERVER] : getClient() failed (at()) !" << std::endl;
+		closeSocket(fds, new_fd);
+		return -1;
 	}
-		// add the incoming connection to our pollfd
-		struct pollfd tmp;
-		tmp.fd = new_fd;
-		tmp.events = POLLIN;
-		fds.push_back(tmp);
 	return 1;
 }
 
@@ -215,13 +223,13 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 	{
 		if (errno == EWOULDBLOCK || errno == EAGAIN)
 			return 0;
-		std::cerr << "recv() failed !" << std::endl;
+		std::cerr << "[SERVER] : recv() failed !" << std::endl;
 		closeSocket(fds, sock);
 		return -1;// check for -1 later
 	}
 	if (bytes_recv == 0)
 	{
-		std::cerr << "Client disconnected !" << std::endl;
+		std::cerr << "[SERVER] : Client disconnected !" << std::endl;
 		closeSocket(fds, sock);
 		return -1;// check for -1 later
 	}
@@ -231,7 +239,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 		cl.setLastActivity(time(NULL));
 		if (cl.getBuffer().size() > 5120)
 		{
-			std::cerr << "Client " << sock << " is flooding. Disconnecting." << std::endl;
+			std::cerr << "[SERVER] : Client " << sock << " is flooding. Disconnecting." << std::endl;
 			closeSocket(fds, sock);
 			return -1;
 		}
@@ -245,7 +253,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 	catch (const std::out_of_range& e)
 	{
 		(void)e;
-		std::cerr << "getClient() failed at Recieving messages !" << std::endl;
+		std::cerr << "[SERVER] : getClient() failed at Recieving messages !" << std::endl;
 		closeSocket(fds, sock); // i guess you should remove this
 		return -1;
 	}
@@ -260,14 +268,16 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 		Client &cl = getClient(sock);
 		std::string &buf = cl.getoutbuffer();
 		std::cout << "[DEBUG] Attempting to send " << buf.size() << " bytes to socket " << sock << std::endl;
+
 		if (buf.empty())
-			return (fds[i].events &= ~POLLOUT,0);
+			return (fds[i].events &= ~POLLOUT, 0);
+
 			// fds[i].events |= POLLOUT;
 			if ((bytesent = send(sock, buf.c_str(), buf.size(), 0)) == -1)
 			{
 				if (errno == EWOULDBLOCK || errno == EAGAIN) // in a blocking socket the program would wait but since we set it to no blocking the func just return
-					return (std::cout << "[DEBUG] EAGAIN hit for socket " << sock << ". OS bucket is full!" << std::endl,0); // Just try again next time POLLOUT is ready
-				cl.getTimeout() = true;
+					return (std::cout << "[DEBUG] EAGAIN hit for socket " << sock << ". OS bucket is full!" << std::endl, 0); // Just try again next time POLLOUT is ready
+				closeSocket(fds, sock);
 				return -1;
 			}
 			std::cout << "[DEBUG] Partial Send: Sent " << bytesent << " bytes. " << (buf.size() - bytesent) << " bytes remain." << std::endl;
@@ -283,9 +293,10 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 	catch (const std::out_of_range& e)
 	{
 		(void)e;
-		std::cerr << "getClient() failed at sending messages !" << std::endl;
+		std::cerr << "[SERVER] : getClient() failed at sending messages !" << std::endl;
 		fds[i].events &= ~POLLOUT;
-		return 0;
+		closeSocket(fds, sock);
+		return -1;
 	}
 }
 
@@ -338,7 +349,8 @@ void Server::closeSocket(pollvec &fds, int sock)
 	{
 		if (it->fd == sock)
 		{
-			fds.erase(it);
+			*it = fds.back();
+			fds.pop_back();
 			break;
 		}
 	}
@@ -420,7 +432,7 @@ int Server::checkClients(pollvec &sockarray)
 				}
 				else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getwhenpingsent()) > 60)
 				{
-					//cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp()); 
+					//cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
 					//cl.getTimeout() = true;
 
 					//closeSocket(sockarray, sockarray[i].fd);  <----- later (removed)

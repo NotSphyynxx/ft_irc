@@ -1,15 +1,5 @@
 #include "Client.hpp"
 
-bool isSpecial(char c)//true (is special)
-{
-	if (c == '_' || c == '-' || c == '\\' || c == '[' || c == ']'
-		|| c == '{' || c == '}' || c == '^' || c == '|')
-	{
-		return true;
-	}
-	return false;
-}
-
 bool Client::Emptynames()//true (empty)
 {
 	if (getnickname().empty() || getusername().empty())
@@ -62,8 +52,6 @@ bool Client::nick(std::string &nickname, Server &sv)
 	for (size_t i = 0; i < nickname.size(); i++)
 	{
 	   unsigned char c = nickname[i];
-	   if (c == '\r' && i + 1 < nickname.size() && nickname[i + 1] == '\n')
-			break;
 		if (!isdigit(c) && !isalpha(c) && !isSpecial(c))
 		{
 			this->getoutbuffer() += ERR_ERRONEUSNICK(SERVER_NAME, nickname);
@@ -182,6 +170,7 @@ int Client::Authentication(Server &sv)
 		}
 		if (extracted.empty())
 			continue;
+
 		if (extracted == "2004")
 		{
 			username = "user2004";

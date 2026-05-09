@@ -20,11 +20,11 @@
 #include <sstream>
 #include <cstdlib>
 #include <algorithm>
-
+#include <sys/socket.h>
 #include "Channel.hpp"
 
 #define PORT 2020
-#define REQUEST 10
+#define REQUEST SOMAXCONN
 #define IPV4LEN 16
 #define BUFFER 1024
 #define SERVER_NAME "ft_irc.2004.ma"
@@ -75,11 +75,13 @@
 #define ERR_NOTEXTTOSEND(server, nickname) (":" + std::string(server) + " 412 " + std::string(nickname) + " :No text to send\r\n")
 
 
-
+// --- NICK BROADCAST MACRO ---
+#define BROADCAST_NICK(old_nick, username, ip, new_nick) (":" + old_nick + "!" + username + "@" + ip + " NICK :" + new_nick + "\r\n")
 
 class Client;
 typedef std::map <int , Client> cmaps;
 typedef std::vector <struct pollfd> pollvec;
+typedef std::map<std::string, Channel>  chnmap;
 
 class Server
 {
@@ -123,6 +125,8 @@ class Server
 		void	processCommand(std::string line, int sock);
 		void	processBuffer(Client &cl);
 		bool	Privmsg(Client &cl, std::string allCmd);
+		bool	changeNICK(Client &cl, std::string &nickname);
+		void	broadcastToSharedChannels(Client &ignored, std::string &messages);
 
 		// --- Player 2 Channel Methods ---
 		Channel* getChannel(std::string name);
@@ -143,5 +147,6 @@ bool		mypass(char *pass);
 int 		parsechannel();
 void		toUpper(std::string &s);
 std::string	bot_ascii_trim_line(const std::string& target, const std::string& raw_text);
+bool		isSpecial(char c);
 
 #endif

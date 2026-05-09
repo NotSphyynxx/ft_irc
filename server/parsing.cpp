@@ -64,3 +64,15 @@ std::string bot_ascii_trim_line(const std::string& target, const std::string& ra
 }
 
 
+bool isSpecial(char c)//true (is special)
+{
+	if (c == '_' || c == '-' || c == '\\' || c == '[' || c == ']'
+		|| c == '{' || c == '}' || c == '^' || c == '|')
+	{
+		return true;
+	}
+	return false;
+}
+
+
+

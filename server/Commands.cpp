@@ -93,6 +93,60 @@ bool	Server::Privmsg(Client &cl , std::string allCmd)
 	return true;
 }
 
+bool Server::changeNICK(Client &cl, std::string &nickname)
+{
+	if (nickname.empty())
+	{
+		cl.getoutbuffer() += ERR_NONICKNAME(SERVER_NAME);
+		return false;
+	}
+	if (nickname.size() > 9)
+	{
+		//Nickname too long
+		cl.getoutbuffer() += ERR_ERRONEUSNICK(SERVER_NAME, nickname);
+		return false;
+	}
+	if (!isalpha(nickname[0]) && !isSpecial(nickname[0]))
+	{
+		cl.getoutbuffer() += ERR_ERRONEUSNICK(SERVER_NAME, nickname);
+		return false;
+	}
+	for (size_t i = 0; i < nickname.size(); i++)
+	{
+	   unsigned char c = nickname[i];
+		if (!isdigit(c) && !isalpha(c) && !isSpecial(c))
+		{
+			cl.getoutbuffer() += ERR_ERRONEUSNICK(SERVER_NAME, nickname);
+			return false;
+		}
+	}// you need to check if there is another client with the same nickname
+	if (sameName(nickname))
+	{
+		cl.getoutbuffer() += ERR_NICKINUSE(SERVER_NAME, nickname);
+		return false;
+	}
+	std::string broadcast = BROADCAST_NICK(cl.getnickname(), cl.getusername(), cl.getIp(), nickname);
+	broadcastToSharedChannels(cl, broadcast);
+	cl.setnickname(nickname);
+
+	return true;
+
+}
+
+void Server::broadcastToSharedChannels(Client &ignored, std::string & messages)
+{
+	chnmap::iterator it = _channels.begin();
+	Channel *chn;
+
+	while (it != _channels.end())
+	{
+		chn = &(it->second);
+		if (chn->isMember(&ignored))
+			chn->broadcastMessage(messages, &ignored);
+		it++;
+	}
+}
+
 void Server::processCommand(std::string line, int sock)
 {
 	try
@@ -136,6 +190,11 @@ void Server::processCommand(std::string line, int sock)
 		else if (cmd == "PRIVMSG")
 		{
 			if (!Privmsg(cl, allCmd))
+				return ;
+		}
+		else if (cmd == "NICK")
+		{
+			if (!changeNICK(cl, token))
 				return ;
 		}
 		// --- HYBRID QUIT COMMAND ---
