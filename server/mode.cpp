@@ -55,7 +55,11 @@ void run_k(Channel& chn, Client& cl, std::string& param, char sign)
     }
     else  
     {
-        chn.removeKey();
+        if (chn.getKey() == param)
+            chn.removeKey();
+        else
+                cl.getoutbuffer() += ":ft_irc.2004.ma 461 "
+                + cl.getnickname() + " MODE :Key parameter does not match\r\n";
         std::string msg = ":" + cl.getnickname() + " MODE " + chn.getName()
             + " -k *\r\n";
         chn.broadcastMessage(msg);
