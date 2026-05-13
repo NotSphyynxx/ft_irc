@@ -52,8 +52,6 @@ void Client::setnickname(std::string s)
 			clean += s[i];
 	}
 	this->nickname = clean;
-	std::string endmsg = "you're nickname is " + getnickname() + "\r\n";
-	outbuffer += endmsg;
 }
 
 void Client::setusername(std::string s)
@@ -66,8 +64,6 @@ void Client::setusername(std::string s)
 			clean += s[i];
 	}
 	this->username = clean;
-	std::string endmsg = "you're username is " + getusername() + "\r\n";
-	outbuffer += endmsg;
 }
 
 void Client::setrealname(std::string s)
@@ -80,8 +76,6 @@ void Client::setrealname(std::string s)
 			clean += s[i];
 	}
 	this->realname = clean;
-	std::string endmsg = "you're realname is " + realname + "\r\n";
-	outbuffer += endmsg;
 }
 
 void Client::setBuffer(std::string buf)
