@@ -30,6 +30,7 @@ class Client
 		bool        pingsent;
 		time_t      whenpingsent;
 		bool		timeOut;
+		bool		dontCloseYet;
 
 
 		Client();
@@ -66,6 +67,7 @@ class Client
 		bool 		pingissent();
 		void 		setping(bool value);
 		bool		&getTimeout();
+		bool		&there_is_data_to_send();
 
 		std::string	getPrefix();// This creates the standard IRC identity mask you will use in commands
 

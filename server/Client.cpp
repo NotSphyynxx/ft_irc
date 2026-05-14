@@ -2,6 +2,7 @@
 
 Client::Client(int sock) : mysocket(sock) , connectTime(time(NULL)), lastActivity(time(NULL)), pingsent(false) , timeOut(false)
 {
+	dontCloseYet = false;
 	for (int i = 0; i < 4 ; i++)
 		setlevel(i , EMPTY);
 }
@@ -155,7 +156,12 @@ std::string Client::getPrefix() {
 	return nickname + "!" + username + "@" + myIp;
 }
 
-bool &Client::getTimeout()
+bool	&Client::getTimeout()
 {
 	return this->timeOut;
+}
+
+bool	&Client::there_is_data_to_send()
+{
+	return this->dontCloseYet;
 }

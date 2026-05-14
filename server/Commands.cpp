@@ -159,8 +159,8 @@ void Server::processCommand(std::string line, int sock)
 		allCmd = line;
 
 		std::stringstream stream_me(allCmd);
-		//stream_me >> cmd >> token;
 		stream_me >> cmd;
+
 	if (!cmd.empty() && cmd[0] == ':')
  	{
  		prefix = cmd;
@@ -169,6 +169,7 @@ void Server::processCommand(std::string line, int sock)
 	}
 	else
 		stream_me >> token;
+
 	toUpper(cmd);
 		if (cmd == "PONG")
 		{
@@ -177,7 +178,6 @@ void Server::processCommand(std::string line, int sock)
 		}
 		else if (cmd == "PING")
 		{
-			std::cout << "[WHAT THE HELL] " << cmd << " <----\n";
 			if (token.empty())
 			{
 				cl.getoutbuffer() += ERR_NOORIGIN(SERVER_NAME);
@@ -191,6 +191,10 @@ void Server::processCommand(std::string line, int sock)
 		{
 			if (!Privmsg(cl, allCmd))
 				return ;
+		}
+		else if (cmd == "PASS" || cmd == "USER")
+		{
+			cl.getoutbuffer() += ERR_ALREADYREG(SERVER_NAME);
 		}
 		else if (cmd == "NICK")
 		{
@@ -259,7 +263,7 @@ void Server::processCommand(std::string line, int sock)
 
             // Loop through the channels separated by commas
             while (std::getline(chanStream, singleChan, ',')) {
-                
+
                 // Get the corresponding key if one was provided
                 singleKey = "";
                 if (!keyString.empty()) {
@@ -292,7 +296,7 @@ void Server::processCommand(std::string line, int sock)
                     }
                 }
                 //------------------------------------------------------------------------------SFIMX RAK 4IRE 9AWAD DYL DAHMANE-----------------------------------------------------------------------------------------------------
-                
+
                 // Slice 2: The Protocol Handshake
                 std::string nick = cl.getnickname();
                 std::string user = cl.getusername();
@@ -473,7 +477,7 @@ void Server::processCommand(std::string line, int sock)
 				std:: cout << "basiiiiiiiiiiiiiite sahbi\n";
 			else if (c == 't')
 				std::cout << "bassiiiiiiiiiiiiiiiite my man\n";
-				
+
 		}
 		else
 		{

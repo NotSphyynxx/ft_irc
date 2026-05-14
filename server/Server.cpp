@@ -14,7 +14,7 @@ Server::Server(char *pt, char *pass)
 		this->password = pass;
 	memset(&hints, 0 , sizeof(hints));
 
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // force the socket to listen to all net interface (ip is 0.0.0.0 )
 
@@ -44,7 +44,7 @@ Server::Server(char *pt, char *pass)
 			close(sockfd);
 			continue;
 		}
-		if (listen(sockfd, REQUEST) == -1) // listen is by default non blocking cuz it just switch the state form active socket to passive
+		if (listen(sockfd, REQUEST) == -1) // listen is by default non blocking cuz it just switch the state form active socket to passive & [QUEUE]
 		{
 			close(sockfd);
 			continue;
@@ -70,7 +70,7 @@ int Server::run()
 	pollvec &sockarray = getpollstruct();
 	int server_sock = this->sockfd;
 
-	//add the main socket (server) to our pollfd vector
+	// add the main socket (server) to our pollfd vector
 	struct pollfd pfd;
 	pfd.fd = server_sock;
 	pfd.events = POLLIN;
@@ -98,7 +98,7 @@ int Server::run()
 			checkClients(sockarray); // set the timeout if there is an inactive or unregistered client
 			checkTimeout(sockarray);// close client with timeout flag
 			continue ;
-			//return 0;// nothing happened (timeout)  but if you said -1 then probably you need to rm this check
+			// nothing happened (timeout)  but if you said -1 then probably you need to rm this check
 		}
 		else
 		{
@@ -130,14 +130,13 @@ int Server::run()
 				if (sockarray[i].revents & POLLOUT) // we have data to send
 				{
 					did_we_reach_p++;
-					if (sendMessages(sockarray, i, sockarray[i].fd) == -1) // you may need to lop here
+					if (sendMessages(sockarray, i, sockarray[i].fd) == -1)
 						continue;
 					if (checkTimeout(sockarray))
 						continue;
 				}
 				i++;
 			}
-			//checkTimeout(sockarray);
 		}
 	}
 
@@ -145,7 +144,7 @@ int Server::run()
 
 int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 {
-	struct sockaddr_storage st;
+	struct sockaddr_storage st; // this struct is big enough to hold ipv4 & ipv6
 	socklen_t sz = sizeof(st);
 	struct sockaddr_in *hp;
 	struct sockaddr_in6 *s6;
@@ -153,6 +152,7 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 
 	int new_fd = -1;
 	memset(&st, 0, sizeof(st));
+
 	if ((new_fd = accept(sock,(sockaddr *) &st, &sz)) == -1)
 	{
 		if (errno == EMFILE || errno == ENFILE)
@@ -163,14 +163,12 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 		std::cerr << "accept () failed on new connection!" << std::endl;
 		return 0;
 	}
-
 	if (fcntl(new_fd, F_SETFL, O_NONBLOCK) == -1) // again set this socket as non-blocking
 	{
 		std::cerr << "fcntl() failed on new connection!" << std::endl;
 		close(new_fd);
 		return 0;
 	}
-
 	try
 	{
 		addClient(new_fd);
@@ -190,17 +188,12 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 			std::cout << "[SERVER] : New connection from: " << ipv4char << " : "  << ntohs(s6->sin6_port) << std::endl;
 		}
 		cl.setIp(ipv4char);
-			// hp->sin_port is in Network Byte Order, so we use ntohs()
-			// std::cout << "New connection from: " << ipv4char << " : "  << ntohs(hp->sin_port) << std::endl;
 
-			// cl.setconnecttinme(time(NULL));
-			// cl.setLastActivity(time(NULL));
-
-			// add the incoming connection to our pollfd
-			struct pollfd tmp;
-			tmp.fd = new_fd;
-			tmp.events = POLLIN;
-			fds.push_back(tmp);
+		// add the incoming connection to our pollfd
+		struct pollfd tmp;
+		tmp.fd = new_fd;
+		tmp.events = POLLIN;
+		fds.push_back(tmp);
 	}
 	catch (const std::out_of_range& e)
 	{
@@ -248,7 +241,7 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 			cl.Authentication(*this);
 		}
 		processBuffer(cl);
-		std::cout << "client " << sock  << " : received " << buff << std::endl;
+		std::cout << "[CLIENT : ]" << sock  << " : Received " << buff << std::endl;
 	}
 	catch (const std::out_of_range& e)
 	{
@@ -270,7 +263,10 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 		std::cout << "[DEBUG] Attempting to send " << buf.size() << " bytes to socket " << sock << std::endl;
 
 		if (buf.empty())
+		{
+			cl.there_is_data_to_send() = false;
 			return (fds[i].events &= ~POLLOUT, 0);
+		}
 
 			// fds[i].events |= POLLOUT;
 			if ((bytesent = send(sock, buf.c_str(), buf.size(), 0)) == -1)
@@ -285,7 +281,10 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 		if (!buf.empty())
 			fds[i].events |= POLLOUT;
 	   else
+	   {
 			fds[i].events &= ~POLLOUT;
+			cl.there_is_data_to_send() = false;
+	   }
 
 		return 1;
 
@@ -386,7 +385,7 @@ int Server::checkTimeout(pollvec &sockarray) // closing sockets
 		try
 		{
 			Client &cl = getClient(sockarray[i].fd);
-			if (cl.getTimeout())
+			if (cl.getTimeout() && !cl.there_is_data_to_send())
 			{
 				flag = 1;
 				closeSocket(sockarray, sockarray[i].fd);
@@ -418,11 +417,10 @@ int Server::checkClients(pollvec &sockarray)
 				Client &cl = getClient(sockarray[i].fd);
 				if (cl.getlevel(3) != REGISTRED && (now - cl.getconnecttime()) > 60)
 				{
-					//std::cout << "Timeout: Closing unregistered client " << sockarray[i].fd << std::endl;
+					std::cout << "Timeout: Closing unregistered client ..." << sockarray[i].fd << std::endl;
 					cl.getoutbuffer() += ERR_CLOSINGLINK(SERVER_NAME, "Authentication time has Passed !");
 					cl.getTimeout() = true;
-					//closeSocket(sockarray, sockarray[i].fd);
-					//continue;
+					cl.there_is_data_to_send() = true;
 				}
 				else if (!cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getLastActivity()) > 60)
 				{
@@ -432,11 +430,10 @@ int Server::checkClients(pollvec &sockarray)
 				}
 				else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getwhenpingsent()) > 60)
 				{
-					//cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
-					//cl.getTimeout() = true;
-
-					//closeSocket(sockarray, sockarray[i].fd);  <----- later (removed)
-					//continue;
+					std::cout << "Timeout: Closing client ..." << sockarray[i].fd << std::endl;
+					cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
+					cl.getTimeout() = true;
+					cl.there_is_data_to_send() = true;
 				}
 			}
 			catch (const std::out_of_range& e)
