@@ -214,66 +214,104 @@ void Server::processCommand(std::string line, int sock)
 			cl.getoutbuffer() += ERR_QUIT(cl.getIp(), allCmd.substr(cmd.size()));
 			cl.getTimeout() = true;
 		}
-		// --- JOIN COMMAND ---
-		else if (cmd == "JOIN")
-		{
-			std::stringstream ss(allCmd);
-			std::string instruction, channelName;
+// --- JOIN COMMAND ---
+        else if (cmd == "JOIN")
+        {
+            std::stringstream ss(allCmd);
+            std::string instruction, channelString, keyString;
 
-			ss >> instruction >> channelName;
+            // Extract the instruction, the channels, and optionally the keys
+            ss >> instruction >> channelString >> keyString;
 
-			if (channelName.empty()) {
-				cl.getoutbuffer() += ":ft_irc.2004.ma 461 JOIN :Not enough parameters\r\n";
-				return;
-			}
+            if (channelString.empty()) {
+                cl.getoutbuffer() += ":ft_irc.2004.ma 461 JOIN :Not enough parameters\r\n";
+                return;
+            }
 
-			// Slice 1: Server Memory
-			Channel* chan = getChannel(channelName);
-			if (chan == NULL) {
-				createChannel(channelName, cl);
-				chan = getChannel(channelName);
-				chan->addOperator(&cl); // Grant the Crown
-			} else {
-				chan->addMember(&cl);
-			}
-			//tal3i code------------------------------------------------------------------------------------------------------------------------------------------------------------------
-			if (chan->getLimit() > 0 && chan->getMembers().size() > static_cast<size_t>(chan->getLimit())) {
-				chan->removeMember(&cl);
-				cl.getoutbuffer() += ":ft_irc.2004.ma 471 " + cl.getnickname() + " " + channelName + " :Cannot join channel (+l)\r\n";
-				return;
-			}
-			if (chan->hasKey()) {
-				std::string providedKey;
-				size_t keyPos = allCmd.find(chan->getKey());
-				if (keyPos != std::string::npos) {
-					providedKey = allCmd.substr(keyPos, chan->getKey().length());
-				}
+            // --- 1. HANDLE "JOIN 0" (Leave all channels) ---
+            if (channelString == "0") {
+                std::vector<std::string> channelsToLeave;
+                // Collect all channels the user is currently in
+                for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it) {
+                    if (it->second.isMember(&cl)) {
+                        channelsToLeave.push_back(it->first);
+                    }
+                }
+                // Leave them one by one (this prevents map iteration errors)
+                for (size_t i = 0; i < channelsToLeave.size(); ++i) {
+                    Channel* chan = getChannel(channelsToLeave[i]);
+                    if (chan) {
+                        std::string partMsg = ":" + cl.getnickname() + "!" + cl.getusername() + "@" + cl.getIp() + " PART " + channelsToLeave[i] + " :Left all channels\r\n";
+                        chan->broadcastMessage(partMsg);
+                        chan->removeMember(&cl);
+                        if (chan->getMembers().size() == 0) {
+                            _channels.erase(channelsToLeave[i]); // Empty room trap!
+                        }
+                    }
+                }
+                return; // Stop processing, we are done.
+            }
 
-				if (providedKey != chan->getKey()) {
-					chan->removeMember(&cl);
-					cl.getoutbuffer() += ":ft_irc.2004.ma 475 " + cl.getnickname() + " " + channelName + " :Cannot join channel (+k)\r\n";
-					return;
-				}
-			}
-			//------------------------------------------------------------------------------SFIMX RAK 4IRE 9AWAD DYL DAHMANE-----------------------------------------------------------------------------------------------------
-			// Slice 2: The Protocol Handshake
-			std::string nick = cl.getnickname();
-			std::string user = cl.getusername();
-			std::string host = cl.getIp();
+            // --- 2. HANDLE MULTIPLE CHANNELS (e.g., JOIN #a,#b pass1,pass2) ---
+            std::stringstream chanStream(channelString);
+            std::stringstream keyStream(keyString);
+            std::string singleChan, singleKey;
 
-			std::string joinMsg = ":" + nick + "!" + user + "@" + host + " JOIN " + channelName + "\r\n";
-			chan->broadcastMessage(joinMsg);
+            // Loop through the channels separated by commas
+            while (std::getline(chanStream, singleChan, ',')) {
+                
+                // Get the corresponding key if one was provided
+                singleKey = "";
+                if (!keyString.empty()) {
+                    std::getline(keyStream, singleKey, ',');
+                }
 
-			std::string topicMsg = ":ft_irc.2004.ma 332 " + nick + " " + channelName + " :No topic set\r\n";
-			cl.getoutbuffer() += topicMsg;
+                // Slice 1: Server Memory
+                Channel* chan = getChannel(singleChan);
+                if (chan == NULL) {
+                    createChannel(singleChan, cl);
+                    chan = getChannel(singleChan);
+                    chan->addOperator(&cl); // Grant the Crown
+                } else {
+                    chan->addMember(&cl);
+                }
 
-			std::string nameList = chan->getMemberListAsString();
-			std::string namesMsg = ":ft_irc.2004.ma 353 " + nick + " = " + channelName + " :" + nameList + "\r\n";
-			cl.getoutbuffer() += namesMsg;
+                //tal3i code------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                if (chan->getLimit() > 0 && chan->getMembers().size() > static_cast<size_t>(chan->getLimit())) {
+                    chan->removeMember(&cl);
+                    cl.getoutbuffer() += ":ft_irc.2004.ma 471 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+l)\r\n";
+                    continue; // Replaced return with continue to process the next channel!
+                }
+                if (chan->hasKey()) {
+                    // Replaced allCmd.find() with the exact singleKey we extracted above
+                    // allCmd.find() would break if multiple passwords were provided!
+                    if (singleKey != chan->getKey()) {
+                        chan->removeMember(&cl);
+                        cl.getoutbuffer() += ":ft_irc.2004.ma 475 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+k)\r\n";
+                        continue; // Replaced return with continue!
+                    }
+                }
+                //------------------------------------------------------------------------------SFIMX RAK 4IRE 9AWAD DYL DAHMANE-----------------------------------------------------------------------------------------------------
+                
+                // Slice 2: The Protocol Handshake
+                std::string nick = cl.getnickname();
+                std::string user = cl.getusername();
+                std::string host = cl.getIp();
 
-			std::string endNamesMsg = ":ft_irc.2004.ma 366 " + nick + " " + channelName + " :End of /NAMES list.\r\n";
-			cl.getoutbuffer() += endNamesMsg;
-		}
+                std::string joinMsg = ":" + nick + "!" + user + "@" + host + " JOIN " + singleChan + "\r\n";
+                chan->broadcastMessage(joinMsg);
+
+                std::string topicMsg = ":ft_irc.2004.ma 332 " + nick + " " + singleChan + " :No topic set\r\n";
+                cl.getoutbuffer() += topicMsg;
+
+                std::string nameList = chan->getMemberListAsString();
+                std::string namesMsg = ":ft_irc.2004.ma 353 " + nick + " = " + singleChan + " :" + nameList + "\r\n";
+                cl.getoutbuffer() += namesMsg;
+
+                std::string endNamesMsg = ":ft_irc.2004.ma 366 " + nick + " " + singleChan + " :End of /NAMES list.\r\n";
+                cl.getoutbuffer() += endNamesMsg;
+            }
+        }
 		// --- INVITE COMMAND ---
 		else if (cmd == "INVITE")
 		{
