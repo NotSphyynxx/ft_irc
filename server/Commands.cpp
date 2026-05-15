@@ -2,6 +2,13 @@
 #include "Server.hpp"
 #include <sstream>
 
+std::string timeToString(time_t t)
+{
+    std::stringstream ss;
+    ss << t;
+    return ss.str();
+}
+
 void Server::processBuffer(Client &cl)
 {
 	std::string &buffer = cl.getBuffer();
@@ -485,6 +492,73 @@ void Server::processCommand(std::string line, int sock)
 				+ cl.getnickname() + " " + c + " :is unknown mode char to me\r\n";
 		}
 	}
+		}
+		else if (cmd == "topic" || cmd == "TOPIC") {
+			std::stringstream ss(allCmd);
+			std::string topic, channelName, newTopic;
+			ss >> topic >> channelName >> newTopic;
+
+			// check aerguments
+			if (channelName.empty()) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " TOPIC :Not enough parameters\r\n";
+				return ;
+			}
+
+			//  MONAKACHA M3A BASITE RAK 4IRE 9AWAD DAHMANE
+			// if (channelName[0] != '#') {
+			// 	cl.getoutbuffer() += ":ft_irc.2004.ma 461 " + cl.getnickname() + " TOPIC :Not enough parameters\r\n";
+			// 	return;
+			// }
+			Channel *chn = getChannel(channelName);
+			// Check if the channel exists
+			if (chn == NULL) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 403 " + cl.getnickname() + " " + channelName + " :No such channel\r\n";
+				return;
+			}
+
+			// Check if the client is a member of the channel
+			if (!chn->isMember(&cl)) {
+				cl.getoutbuffer() += ":ft_irc.2004.ma 442 " + cl.getnickname() + " " + channelName + " :You're not on that channel\r\n";
+				return;
+			}
+
+			// If no new topic is provided, return the current topic
+			if (newTopic.empty()) {
+				std::string topicMsg, whoAndWhenMessage;
+
+				// If no topic is set, inform the client
+				if (chn->gettopic().empty()) {
+					topicMsg = ":ft_irc.2004.ma 332 " + cl.getnickname() + " " + channelName + " :No topic set\r\n";
+					cl.getoutbuffer() += topicMsg;
+					return ;
+				}
+
+				// If a topic is set, return it along with the setter and timestamp
+				topicMsg = ":ft_irc.2004.ma 332 " + cl.getnickname() + " " + channelName + " :" + chn->gettopic() + "\r\n";
+				whoAndWhenMessage = ":ft_irc.2004.ma 333 " + cl.getnickname() + " " + channelName + " " + chn->getTopicSetter() + " " + timeToString(chn->getTopicSetTime()) + "\r\n";
+				cl.getoutbuffer() += topicMsg;
+				cl.getoutbuffer() += whoAndWhenMessage;
+				return;
+			} else {
+
+				// If a new topic is provided, check if the client has permission to change it
+				if (chn->gethistopic() == true && !chn->isOperator(&cl)) {
+					cl.getoutbuffer() += ":ft_irc.2004.ma 482 " + cl.getnickname() + " " + channelName + " :You're not channel operator\r\n";
+					return ;
+					
+				}
+
+				chn->setTopic(newTopic);
+
+				for (size_t i = 0; i < chn->getMembers().size(); ++i) {
+					Client* member = chn->getMembers()[i];
+					member->getoutbuffer() += ":ft_irc.2004.ma 332 " + member->getnickname() + " " + channelName + " :" + newTopic + "\r\n";
+				}
+
+
+			} 
+
+
 		}
 	}
 	catch (const std::out_of_range& e)

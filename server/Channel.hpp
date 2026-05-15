@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <ctime>
 // #include "Server.hpp"
 
 class Client;
@@ -13,7 +14,11 @@ class Channel {
         std::vector<Client*> _clients;
         std::vector<Client*> _operators;
         std::vector<std::string> _invited;
+        std::string _topic;
         int _limit;
+        bool _histopic;
+        std::string _topicSetter;
+        time_t _topicSetTime;
 
     public:
     Channel();
@@ -23,7 +28,19 @@ class Channel {
     std::string getName() const;
     std::vector<Client*> getMembers() const;
     std::string getMemberListAsString(); 
+    void settrueHistopic() ;
+    std::string getTopicSetter() const;
+    time_t getTopicSetTime() const;
+    void setTopicSetter(const std::string& setter);
+    void setTopicSetTime(time_t time);
 
+    bool gethistopic() const ;
+
+    void setTopic(const std::string& topic);
+    std::string gettopic() const;
+
+
+    void setfalsehistopic() ;
     void addOperator(Client* client);
     bool isOperator(Client* client);
     std::string getModesString() const;

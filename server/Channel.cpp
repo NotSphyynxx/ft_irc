@@ -1,12 +1,42 @@
 #include "Channel.hpp"
 #include "Client.hpp"
 
-Channel::Channel() : _name("") {}
+Channel::Channel() : _name(""), _histopic(true) {}
 
-Channel::Channel(std::string name) : _name(name) {}
+Channel::Channel(std::string name) : _name(name), _histopic(true) {}
 
 Channel::~Channel() {}
+void Channel::settrueHistopic() {
+    _histopic = true;
+}
+void Channel::setfalsehistopic() {
+    _histopic = false;
+}
+bool Channel::gethistopic() const {
+    return _histopic;
+}
 
+std::string Channel::getTopicSetter() const {
+    return _topicSetter;
+}
+time_t Channel::getTopicSetTime() const {
+    return _topicSetTime;
+};
+
+void Channel::setTopicSetter(const std::string& setter) {
+    _topicSetter = setter;
+};
+
+void Channel::setTopicSetTime(time_t time) {
+    _topicSetTime = time;
+};
+
+void Channel:: setTopic(const std::string& topic) {
+    _topic = topic;
+};
+std::string Channel::gettopic() const {
+    return _topic;
+};
 // std::string Channel::getModesString() const
 // {
 //     std::string modes = "+";

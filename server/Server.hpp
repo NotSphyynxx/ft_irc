@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <sys/socket.h>
 #include "Channel.hpp"
+#include <csignal>
 
 #define PORT 2020
 #define REQUEST SOMAXCONN
