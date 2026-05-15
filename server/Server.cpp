@@ -6,12 +6,13 @@ Server::Server(char *pt, char *pass)
 	struct addrinfo hints;
 	struct addrinfo *p;
 	struct addrinfo *server_info;
+	std::string		final_pass;
 	int check  = -1;
 	myport(pt);
 
 	sockfd = -1;
-	if (mypass(pass))
-		this->password = pass;
+	mypass(pass, final_pass);
+	this->password = final_pass;
 	memset(&hints, 0 , sizeof(hints));
 
 	hints.ai_family = AF_INET;

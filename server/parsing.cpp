@@ -23,12 +23,18 @@ int myport(char *port)
    return (static_cast<int> (to_nb));
 }
 
-bool mypass(char *pass)
+void mypass(char *pass, std::string &result)
 {
-   std::string pw = pass;
-   if (pw.empty())
-		throw std::runtime_error("Empty password ! \n");
-	return true;
+	if (!pass)
+		throw std::runtime_error("Empty password !");
+	std::string pw = pass;
+	size_t skipSpaces = pw.find_first_not_of(" \t");
+	if (pw.empty() || skipSpaces == std::string::npos)
+		throw std::runtime_error("Empty password !");
+	size_t last = pw.find_last_not_of(" \t");
+	result = pw.substr(skipSpaces, (last - skipSpaces + 1));
+	if (result.find_first_of(" \t") != std::string::npos)
+		throw std::runtime_error("Error: IRC passwords cannot contain spaces.");
 }
 
 void toUpper(std::string &s)
