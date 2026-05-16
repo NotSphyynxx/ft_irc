@@ -284,6 +284,9 @@ void Server::processCommand(std::string line, int sock)
                     chan = getChannel(singleChan);
                     chan->addOperator(&cl); // Grant the Crown
                 } else {
+					if (chan->isMember(&cl)) {
+                        continue; // if user is arleady on the channel
+                    }
                     chan->addMember(&cl);
                 }
 
@@ -482,19 +485,17 @@ void Server::processCommand(std::string line, int sock)
 		}
 		else if (c == 'i' || c == 't')
 		{
-			if (c == 'i')
+			if (c == 'i') {
 				if (sign == '+')
 					chn->setInviteOnly(true);
 				else
 					chn->setInviteOnly(false);
-			else if (c == 't')
-			{
+			} else if (c == 't') {
 				if (sign == '+')
 					chn->settrueHistopic();
 				else
 					chn->setfalsehistopic();
 			}
-
 		}
 		else
 		{
