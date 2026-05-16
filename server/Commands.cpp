@@ -486,17 +486,17 @@ void Server::processCommand(std::string line, int sock)
 		}
 		else if (c == 'i' || c == 't')
 		{
-			if (c == 'i')
+			if (c == 'i') {
 				if (sign == '+')
 					chn->setInviteOnly(true);
 				else
 					chn->setInviteOnly(false);
-			else if (c == 't')
+			} else if (c == 't') {
 				if (sign == '+')
 					chn->settrueHistopic();
 				else
 					chn->setfalsehistopic();
-
+			}
 		}
 		else
 		{
