@@ -302,6 +302,9 @@ void Server::processCommand(std::string line, int sock)
                         continue; // Replaced return with continue!
                     }
                 }
+				if (!chan->getInviteOnly() && !chan->isInvited(cl.getnickname())) {
+					
+				}
                 //------------------------------------------------------------------------------SFIMX RAK 4IRE 9AWAD DYL DAHMANE-----------------------------------------------------------------------------------------------------
 
                 // Slice 2: The Protocol Handshake
@@ -481,9 +484,15 @@ void Server::processCommand(std::string line, int sock)
 		else if (c == 'i' || c == 't')
 		{
 			if (c == 'i')
-				std:: cout << "basiiiiiiiiiiiiiite sahbi\n";
+				if (sign == '+')
+					chn->setInviteOnly(true);
+				else
+					chn->setInviteOnly(false);
 			else if (c == 't')
-				std::cout << "bassiiiiiiiiiiiiiiiite my man\n";
+				if (sign == '+')
+					chn->settrueHistopic();
+				else
+					chn->setfalsehistopic();
 
 		}
 		else

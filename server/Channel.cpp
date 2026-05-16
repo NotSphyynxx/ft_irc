@@ -208,4 +208,12 @@ bool Channel::hasLimit() const
 {
     return _limit > 0;
 }
+void Channel::setInviteOnly(bool inviteOnly)
+{
+    _inviteOnly = inviteOnly;
+}
+bool Channel::getInviteOnly() const
+{
+    return _inviteOnly;
+}
 //tal3i fnuction

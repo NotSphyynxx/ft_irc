@@ -17,6 +17,7 @@ class Channel {
         std::string _topic;
         int _limit;
         bool _histopic;
+        bool _inviteOnly;
         std::string _topicSetter;
         time_t _topicSetTime;
 
@@ -65,6 +66,8 @@ class Channel {
     void removeLimit();
     int getLimit() const;
     bool hasLimit() const;
+    void setInviteOnly(bool inviteOnly);
+    bool getInviteOnly() const;
 };
 
 #endif
