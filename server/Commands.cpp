@@ -288,12 +288,12 @@ void Server::processCommand(std::string line, int sock)
                 }
 
                 //tal3i code------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                if (chan->getLimit() > 0 && chan->getMembers().size() > static_cast<size_t>(chan->getLimit())) {
+                if (chan->getLimit() > 0 && chan->getMembers().size() > static_cast<size_t>(chan->getLimit()) && !chan->isInvited(cl.getnickname())) {
                     chan->removeMember(&cl);
                     cl.getoutbuffer() += ":ft_irc.2004.ma 471 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+l)\r\n";
                     continue; // Replaced return with continue to process the next channel!
                 }
-                if (chan->hasKey()) {
+                if (chan->hasKey() && !chan->isInvited(cl.getnickname())) {
                     // Replaced allCmd.find() with the exact singleKey we extracted above
                     // allCmd.find() would break if multiple passwords were provided!
                     if (singleKey != chan->getKey()) {
@@ -302,8 +302,11 @@ void Server::processCommand(std::string line, int sock)
                         continue; // Replaced return with continue!
                     }
                 }
-				if (!chan->getInviteOnly() && !chan->isInvited(cl.getnickname())) {
-					
+				// if channel invite only so +i and second find the the client arre availabale in the list
+				if (chan->getInviteOnly() && !chan->isInvited(cl.getnickname())) {
+					cl.getoutbuffer() += ":ft_irc.2004.ma 473 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+i)\r\n";
+					continue; // Replaced return with continue!
+
 				}
                 //------------------------------------------------------------------------------SFIMX RAK 4IRE 9AWAD DYL DAHMANE-----------------------------------------------------------------------------------------------------
 
@@ -435,13 +438,9 @@ void Server::processCommand(std::string line, int sock)
 			}
 			if (modeChanges.empty())
 			{
-				// std::string modes = chn->getModesString(); // e.g. "+itk"
-
-				// cl.getoutbuffer() += ":ft_irc.2004.ma 324 "
-				// 	+ cl.getnickname() + " "
-				// 	+ channelName + " "
-				// 	+ modes + "\r\n";
-
+				std::string modes = chn->getModesString();
+				cl.getoutbuffer() += ":ft_irc.2004.ma 324 " +
+					cl.getnickname() + " " + channelName + " " + modes + "\r\n";
 				return;
 			}
 	std::vector<std::string> params;
@@ -489,10 +488,12 @@ void Server::processCommand(std::string line, int sock)
 				else
 					chn->setInviteOnly(false);
 			else if (c == 't')
+			{
 				if (sign == '+')
 					chn->settrueHistopic();
 				else
 					chn->setfalsehistopic();
+			}
 
 		}
 		else

@@ -216,4 +216,25 @@ bool Channel::getInviteOnly() const
 {
     return _inviteOnly;
 }
+std::string Channel::getModesString() const {
+    std::string modes = "+";
+    if (this->_inviteOnly)
+        modes += "i";
+    if (this->_histopic)
+        modes += "t";
+    if (!this->_key.empty())
+        modes += "k";
+    if (this->_limit > 0)
+        modes += "l";
+
+    if (!this->_key.empty())
+        modes += " " + this->_key;
+    if (this->_limit > 0)
+    {
+        std::stringstream ss;
+        ss << this->_limit;
+        modes += " " + ss.str();
+    }
+    return modes;
+}
 //tal3i fnuction
