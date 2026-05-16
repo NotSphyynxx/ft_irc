@@ -284,6 +284,9 @@ void Server::processCommand(std::string line, int sock)
                     chan = getChannel(singleChan);
                     chan->addOperator(&cl); // Grant the Crown
                 } else {
+					if (chan->isMember(&cl)) {
+                        continue; // if user is arleady on the channel
+                    }
                     chan->addMember(&cl);
                 }
 
