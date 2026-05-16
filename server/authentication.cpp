@@ -11,11 +11,14 @@ bool Client::Emptynames()//true (empty)
 
 bool Client::pass(std::string &pass, Server &sv)
 {
-	if (getlevel(0) == hasPASS)
+	if (getlevel(0) == hasPASS && getlevel(3) == REGISTRED)
 	{
 		getoutbuffer() += ERR_ALREADYREG(SERVER_NAME);
 		return false;
 	}
+	if (pass.empty())
+		return (outbuffer+=ERR_NEEDMOREPARAMS(SERVER_NAME, "PASS"), false);
+
 	if (pass == sv.getpass())
 	{
 		setlevel(0, hasPASS);
@@ -23,10 +26,9 @@ bool Client::pass(std::string &pass, Server &sv)
 	}
 	else
 	{
-		if (pass.empty())
-			return (outbuffer+=ERR_NEEDMOREPARAMS(SERVER_NAME, "PASS"), false);
+		if (getlevel(0) == hasPASS)
+			setlevel(0, EMPTY);
 		outbuffer += ERR_PASSWDMISMATCH(SERVER_NAME);
-		timeOut = true;
 	}
 	return false;
 }
@@ -210,7 +212,7 @@ int Client::Authentication(Server &sv)
 			}
 			 else
 			{
-				this->getoutbuffer() +=  ERR_NOTREGISTERED(SERVER_NAME);;
+				this->getoutbuffer() +=  ERR_NOTREGISTERED(SERVER_NAME);
 				return (copy.erase(0 , pos + 1),0);
 			}
 
