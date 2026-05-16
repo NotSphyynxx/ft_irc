@@ -31,7 +31,7 @@ void run_o(Channel& chn, Client& cl, std::string& param, char sign)
         chn.removeOperator(target);
     }
 
-    std::string modeStr = sign ? "+o" : "-o";
+    std::string modeStr = (sign == '+' ) ? "+o" : "-o";
     std::string msg = ":" + cl.getnickname() + " MODE " + chn.getName()
         + " " + modeStr + " " + param + "\r\n";
     chn.broadcastMessage(msg);
@@ -76,8 +76,8 @@ void run_l(Channel& chn, Client& cl, std::string& param, char sign)
 
     if (sign == '+') 
     {
-        int limit = std::atoi(param.c_str());
-        if (limit <= 0)
+        long limit = std::atol(param.c_str());
+        if (limit <= 0 || limit > INT_MAX)
         {
             cl.getoutbuffer() += ":ft_irc.2004.ma 461 "
                 + cl.getnickname() + " MODE :Invalid limit parameter\r\n";

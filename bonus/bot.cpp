@@ -14,7 +14,6 @@
 #include <map>
 #include <string>
 #include <ctime>
-#include <cerrno>
 #include <sstream>
 #include <cstdlib>
 #include <algorithm>

@@ -16,13 +16,13 @@
 #include <map>
 #include <string>
 #include <ctime>
-#include <cerrno>
 #include <sstream>
 #include <cstdlib>
 #include <algorithm>
 #include <sys/socket.h>
 #include "Channel.hpp"
 #include <csignal>
+#include <climits>
 
 #define PORT 2020
 #define REQUEST SOMAXCONN

@@ -89,8 +89,6 @@ int Server::run()
 
 		if (p < 0)
 		{
-			if (errno == EINTR)
-				continue; // Just a signal, go back to the top of the while(1)
 		if (p == -1)
 			throw std::runtime_error("poll failed");
 		}
@@ -156,11 +154,6 @@ int Server::NewConnection(std::vector <struct pollfd> &fds, int sock)
 
 	if ((new_fd = accept(sock,(sockaddr *) &st, &sz)) == -1)
 	{
-		if (errno == EMFILE || errno == ENFILE)
-		{
-			std::cerr << "[WARNING] Server is full. Dropping new connection." << std::endl;
-			return 0;
-		}
 		std::cerr << "accept () failed on new connection!" << std::endl;
 		return 0;
 	}
@@ -215,8 +208,6 @@ int Server::RecieveMessage(std::vector <struct pollfd> &fds, int sock)
 	bytes_recv = recv(sock, buff, BUFFER, 0);
 	if (bytes_recv == -1)
 	{
-		if (errno == EWOULDBLOCK || errno == EAGAIN)
-			return 0;
 		std::cerr << "[SERVER] : recv() failed !" << std::endl;
 		closeSocket(fds, sock);
 		return -1;// check for -1 later
@@ -272,8 +263,6 @@ int Server::sendMessages(std::vector <struct pollfd> &fds, unsigned int i, int s
 			// fds[i].events |= POLLOUT;
 			if ((bytesent = send(sock, buf.c_str(), buf.size(), 0)) == -1)
 			{
-				if (errno == EWOULDBLOCK || errno == EAGAIN) // in a blocking socket the program would wait but since we set it to no blocking the func just return
-					return (std::cout << "[DEBUG] EAGAIN hit for socket " << sock << ". OS bucket is full!" << std::endl, 0); // Just try again next time POLLOUT is ready
 				closeSocket(fds, sock);
 				return -1;
 			}

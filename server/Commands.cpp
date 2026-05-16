@@ -307,6 +307,7 @@ void Server::processCommand(std::string line, int sock)
                 }
 				// if channel invite only so +i and second find the the client arre availabale in the list
 				if (chan->getInviteOnly() && !chan->isInvited(cl.getnickname())) {
+					chan->removeMember(&cl);
 					cl.getoutbuffer() += ":ft_irc.2004.ma 473 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+i)\r\n";
 					continue; // Replaced return with continue!
 
