@@ -42,62 +42,68 @@ void Server::processBuffer(Client &cl)
 
 bool	Server::Privmsg(Client &cl , std::string allCmd)
 {
-	std::string cmd , target , message;
-	std::stringstream ss(allCmd);
-	ss >> cmd >> target;
+    std::string cmd , target , message;
+    std::stringstream ss(allCmd);
+    ss >> cmd >> target;
 
-	if (target.empty())
-	{
-		cl.getoutbuffer() += ERR_NORECIPIENT(SERVER_NAME, cl.getnickname(), "PRIVMSG");
-		return false;
-	}
-	std::getline(ss, message);
-	size_t pos = message.find(":");
-	if (pos != std::string::npos)
-		message = message.substr(pos + 1);
-	else
-		{
-			size_t leading_spaces = message.find_first_not_of(" \t");
-			if (leading_spaces != std::string::npos)
-			{
-				size_t remaining_spaces = message.find_last_not_of(" \t");
-				message = message.substr(leading_spaces, remaining_spaces - leading_spaces + 1);
-			}
-			else
-				message = "";
-		}
-	if (message.empty())
-	{
-		cl.getoutbuffer() += ERR_NOTEXTTOSEND(SERVER_NAME, cl.getnickname());
-		return false;
-	}
+    if (target.empty())
+    {
+        cl.getoutbuffer() += ERR_NORECIPIENT(SERVER_NAME, cl.getnickname(), "PRIVMSG");
+        return false;
+    }
+    std::getline(ss, message);
+    size_t start = message.find_first_not_of(" \t");
+    if (start == std::string::npos)
+    {
+        cl.getoutbuffer() += ERR_NOTEXTTOSEND(SERVER_NAME, cl.getnickname());
+        return false;
+    }
+    message = message.substr(start);
+
+    // 4. The STRICT Colon Rule
+    if (message[0] == ':')
+    {
+        // It starts with a colon. Take EVERYTHING after it.
+        message = message.substr(1);
+    }
+    else
+    {
+        size_t space_pos = message.find_first_of(" \t");
+        if (space_pos != std::string::npos)
+            message = message.substr(0, space_pos);
+    }
+    if (message.empty())
+    {
+        cl.getoutbuffer() += ERR_NOTEXTTOSEND(SERVER_NAME, cl.getnickname());
+        return false;
+    }
 // For Channel
-	if (target[0] == '&' || target[0] == '#')
-	{
-		Channel *chn = getChannel(target);
-		if (!chn)
-		{
-			cl.getoutbuffer() += ERR_NOSUCHNICK(SERVER_NAME, cl.getnickname() , target);
-			return false;
-		}
-		if (chn->isMember(&cl) == false)
-		{
-			cl.getoutbuffer() += ERR_CANNOTSENDTOCHAN(SERVER_NAME, cl.getnickname() , target);
-			return false;
-		}
-		chn->broadcastMessage(CMD_PRIVMSG(cl.getPrefix(), target, message), &cl);
-		return true;
-	}
+    if (target[0] == '&' || target[0] == '#')
+    {
+        Channel *chn = getChannel(target);
+        if (!chn)
+        {
+            cl.getoutbuffer() += ERR_NOSUCHNICK(SERVER_NAME, cl.getnickname() , target);
+            return false;
+        }
+        if (chn->isMember(&cl) == false)
+        {
+            cl.getoutbuffer() += ERR_CANNOTSENDTOCHAN(SERVER_NAME, cl.getnickname() , target);
+            return false;
+        }
+        chn->broadcastMessage(CMD_PRIVMSG(cl.getPrefix(), target, message), &cl);
+        return true;
+    }
 // For Client
-	Client *c_target = getClientByNickname(target);
+    Client *c_target = getClientByNickname(target);
 
-	if (c_target == NULL)
-	{
-		cl.getoutbuffer() += ERR_NOSUCHNICK(SERVER_NAME, cl.getnickname() , target);
-		return false;
-	}
-	c_target->getoutbuffer() += CMD_PRIVMSG(cl.getPrefix(), target, message);
-	return true;
+    if (c_target == NULL)
+    {
+        cl.getoutbuffer() += ERR_NOSUCHNICK(SERVER_NAME, cl.getnickname() , target);
+        return false;
+    }
+    c_target->getoutbuffer() += CMD_PRIVMSG(cl.getPrefix(), target, message);
+    return true;
 }
 
 bool Server::changeNICK(Client &cl, std::string &nickname)
@@ -279,25 +285,25 @@ void Server::processCommand(std::string line, int sock)
 
                 // Slice 1: Server Memory & Security Checks
                 Channel* chan = getChannel(singleChan);
-                
+
                 if (chan == NULL) {
                     // NEW CHANNEL: No locks exist yet. Just create and grant Operator.
                     createChannel(singleChan, cl);
                     chan = getChannel(singleChan);
-                    chan->addOperator(&cl); 
-                } 
+                    chan->addOperator(&cl);
+                }
                 else {
                     // EXISTING CHANNEL: Run the Gauntlet BEFORE letting them in.
-                    
+
                     // 1. Are they already inside? (The Silent Ignore)
                     if (chan->isMember(&cl)) {
-                        continue; 
+                        continue;
                     }
 
                     // 2. CHECK: Limit (+l)
                     if (chan->getLimit() > 0 && chan->getMembers().size() >= static_cast<size_t>(chan->getLimit()) && !chan->isInvited(cl.getnickname())) {
                         cl.getoutbuffer() += ":ft_irc.2004.ma 471 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+l)\r\n";
-                        continue; 
+                        continue;
                     }
 
                     // 3. CHECK: Key/Password (+k)
@@ -568,7 +574,7 @@ void Server::processCommand(std::string line, int sock)
 				if (chn->gethistopic() == true && !chn->isOperator(&cl)) {
 					cl.getoutbuffer() += ":ft_irc.2004.ma 482 " + cl.getnickname() + " " + channelName + " :You're not channel operator\r\n";
 					return ;
-					
+
 				}
 
 				chn->setTopic(newTopic);
@@ -579,7 +585,7 @@ void Server::processCommand(std::string line, int sock)
 				}
 
 
-			} 
+			}
 
 
 		}
