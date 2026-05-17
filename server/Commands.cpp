@@ -325,9 +325,16 @@ void Server::processCommand(std::string line, int sock)
 
                 std::string joinMsg = ":" + nick + "!" + user + "@" + host + " JOIN " + singleChan + "\r\n";
                 chan->broadcastMessage(joinMsg);
-
-                std::string topicMsg = ":ft_irc.2004.ma 332 " + nick + " " + singleChan + " :No topic set\r\n";
-                cl.getoutbuffer() += topicMsg;
+				if (chan->gethistopic()){
+                    // If true: Send 332 with the actual channel topic
+                    std::string topicMsg = ":ft_irc.2004.ma 332 " + nick + " " + singleChan + " :" + chan->gettopic() + "\r\n";
+                    cl.getoutbuffer() += topicMsg;
+                }
+				else{
+                    // If false: Send 331 (Official numeric for No Topic)
+                    std::string topicMsg = ":ft_irc.2004.ma 331 " + nick + " " + singleChan + " :No topic is set\r\n";
+                    cl.getoutbuffer() += topicMsg;
+                }
 
                 std::string nameList = chan->getMemberListAsString();
                 std::string namesMsg = ":ft_irc.2004.ma 353 " + nick + " = " + singleChan + " :" + nameList + "\r\n";

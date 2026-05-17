@@ -142,6 +142,12 @@ void Channel::removeMember(Client* client){
             break;
         }
     }
+	for (std::vector<std::string>::iterator it = _invited.begin(); it != _invited.end(); ++it){
+		if (*it == client->getnickname()){
+			_invited.erase(it);
+			break ;
+		}
+	}
 }
 
 
