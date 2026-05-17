@@ -277,42 +277,46 @@ void Server::processCommand(std::string line, int sock)
                     std::getline(keyStream, singleKey, ',');
                 }
 
-                // Slice 1: Server Memory
+                // Slice 1: Server Memory & Security Checks
                 Channel* chan = getChannel(singleChan);
+                
                 if (chan == NULL) {
+                    // NEW CHANNEL: No locks exist yet. Just create and grant Operator.
                     createChannel(singleChan, cl);
                     chan = getChannel(singleChan);
-                    chan->addOperator(&cl); // Grant the Crown
-                } else {
-					if (chan->isMember(&cl)) {
-                        continue; // if user is arleady on the channel
+                    chan->addOperator(&cl); 
+                } 
+                else {
+                    // EXISTING CHANNEL: Run the Gauntlet BEFORE letting them in.
+                    
+                    // 1. Are they already inside? (The Silent Ignore)
+                    if (chan->isMember(&cl)) {
+                        continue; 
                     }
+
+                    // 2. CHECK: Limit (+l)
+                    if (chan->getLimit() > 0 && chan->getMembers().size() >= static_cast<size_t>(chan->getLimit()) && !chan->isInvited(cl.getnickname())) {
+                        cl.getoutbuffer() += ":ft_irc.2004.ma 471 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+l)\r\n";
+                        continue; 
+                    }
+
+                    // 3. CHECK: Key/Password (+k)
+                    if (chan->hasKey() && !chan->isInvited(cl.getnickname())) {
+                        if (singleKey != chan->getKey()) {
+                            cl.getoutbuffer() += ":ft_irc.2004.ma 475 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+k)\r\n";
+                            continue;
+                        }
+                    }
+
+                    // 4. CHECK: Invite Only (+i)
+                    if (chan->getInviteOnly() && !chan->isInvited(cl.getnickname())) {
+                        cl.getoutbuffer() += ":ft_irc.2004.ma 473 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+i)\r\n";
+                        continue;
+                    }
+
+                    // 5. ALL CHECKS PASSED: Open the door and add them to the memory!
                     chan->addMember(&cl);
                 }
-
-                //tal3i code------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                if (chan->getLimit() > 0 && chan->getMembers().size() > static_cast<size_t>(chan->getLimit()) && !chan->isInvited(cl.getnickname())) {
-                    chan->removeMember(&cl);
-                    cl.getoutbuffer() += ":ft_irc.2004.ma 471 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+l)\r\n";
-                    continue; // Replaced return with continue to process the next channel!
-                }
-                if (chan->hasKey() && !chan->isInvited(cl.getnickname())) {
-                    // Replaced allCmd.find() with the exact singleKey we extracted above
-                    // allCmd.find() would break if multiple passwords were provided!
-                    if (singleKey != chan->getKey()) {
-                        chan->removeMember(&cl);
-                        cl.getoutbuffer() += ":ft_irc.2004.ma 475 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+k)\r\n";
-                        continue; // Replaced return with continue!
-                    }
-                }
-				// if channel invite only so +i and second find the the client arre availabale in the list
-				if (chan->getInviteOnly() && !chan->isInvited(cl.getnickname())) {
-					chan->removeMember(&cl);
-					cl.getoutbuffer() += ":ft_irc.2004.ma 473 " + cl.getnickname() + " " + singleChan + " :Cannot join channel (+i)\r\n";
-					continue; // Replaced return with continue!
-
-				}
-                //------------------------------------------------------------------------------SFIMX RAK 4IRE 9AWAD DYL DAHMANE-----------------------------------------------------------------------------------------------------
 
                 // Slice 2: The Protocol Handshake
                 std::string nick = cl.getnickname();
