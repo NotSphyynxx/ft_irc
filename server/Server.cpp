@@ -408,9 +408,9 @@ int Server::checkClients(pollvec &sockarray)
 				if (cl.getlevel(3) != REGISTRED && (now - cl.getconnecttime()) > 60)
 				{
 					std::cout << "Timeout: Closing unregistered client ..." << sockarray[i].fd << std::endl;
-					//cl.getoutbuffer() += ERR_CLOSINGLINK(SERVER_NAME, "Authentication time has Passed !");
-					//cl.getTimeout() = true;
-					//cl.there_is_data_to_send() = true;
+					cl.getoutbuffer() += ERR_CLOSINGLINK(SERVER_NAME, "Authentication time has Passed !");
+					cl.getTimeout() = true;
+					cl.there_is_data_to_send() = true;
 				}
 				else if (!cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getLastActivity()) > 60)
 				{
@@ -421,9 +421,9 @@ int Server::checkClients(pollvec &sockarray)
 				else if (cl.pingissent() &&  cl.getlevel(3) == REGISTRED && (now - cl.getwhenpingsent()) > 60)
 				{
 					std::cout << "Timeout: Closing client ..." << sockarray[i].fd << std::endl;
-					//cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
-					//cl.getTimeout() = true;
-					//cl.there_is_data_to_send() = true;
+					cl.getoutbuffer() += ERR_PINGTIMEOUT(cl.getIp());
+					cl.getTimeout() = true;
+					cl.there_is_data_to_send() = true;
 				}
 			}
 			catch (const std::out_of_range& e)
