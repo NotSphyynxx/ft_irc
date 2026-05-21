@@ -172,16 +172,6 @@ int Client::Authentication(Server &sv)
 		}
 		if (extracted.empty())
 			continue;
-
-		if (extracted == "2004")
-		{
-			username = "user2004";
-			nickname = "nick2004";
-			realname = "nick2004";
-
-			this->setlevel(3, REGISTRED);
-			return 0;
-		}
 		std::stringstream sp(extracted);
 		sp >> cmd >> value;
 		toUpper(cmd);
