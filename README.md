@@ -8,7 +8,7 @@
 
 This server acts as the central hub for clients (like LimeChat, irssi, or netcat) to connect, authenticate, join channels, send private messages, manage channel operators, and even facilitate direct peer-to-peer file transfers (DCC).
 
-## 🚀 Key Features
+## Key Features
 
 *   **Single-Threaded Multiplexing:** Built entirely around the `poll()` system call, handling hundreds of concurrent connections without thread overhead or race conditions.
 *   **100% Non-Blocking I/O:** Every socket (listener and clients) is forced into `O_NONBLOCK` mode via `fcntl()`, ensuring the server never freezes while reading or writing to slow clients.
@@ -16,14 +16,14 @@ This server acts as the central hub for clients (like LimeChat, irssi, or netcat
 *   **Robust Channel Management:** Full support for channel creation, operator privileges, and dynamic channel modes (`+i`, `+t`, `+k`, `+o`, `+l`).
 *   **DCC File Transfer Support:** Perfectly routes CTCP handshakes (`\x01DCC SEND...\x01`) via `PRIVMSG`, allowing clients to establish direct peer-to-peer file transfers.
 
-## ⚙️ Architecture & Tech Stack
+## Architecture & Tech Stack
 
 *   **Language:** C++98
 *   **Network API:** POSIX Sockets (`socket`, `bind`, `listen`, `accept`, `send`, `recv`)
 *   **Multiplexing:** `poll()`
 *   **Memory Management:** Strictly leak-free, managing buffers dynamically without crashing under heavy loads (e.g., partial sends/receives).
 
-## 🛠️ Installation & Compilation
+## Installation & Compilation
 
 Ensure you have `make` and a C++ compiler (`c++` or `clang++`) installed.
 
@@ -89,13 +89,13 @@ USER myUser 0 * :My Real Name
 *   `o` : Give/take channel operator privilege.
 *   `l` : Set/remove the user limit to channel.
 
-## 🤖 Bonus Features (IRC Bot)
+## Bonus Features (IRC Bot)
 
 To satisfy the bonus requirements of the project, a custom IRC Bot is integrated into the server environment. It listens for specific triggers in channels and responds automatically.
 
 *   `!joke` - The bot replies to the channel with a randomly selected programming or dad joke.
 *   `!roll` - The bot simulates rolling a dice and outputs a random number (e.g., 1-100) to the channel, perfect for settling disputes or playing games.
-## 🧠 Handling Partial Data & Buffers
+## Handling Partial Data & Buffers
 
 Network data doesn't always arrive in perfect, full strings. `ft_irc` employs a robust internal buffering system inside the `Client` class. 
 *   If `recv()` grabs a partial command (missing the `\r\n`), it is appended to an internal read buffer until the full string arrives.
